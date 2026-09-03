@@ -659,7 +659,7 @@ isInventoryOpen = false;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
 
-        document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', (e) => {
             if (isPaused || myHp <= 0) return;
 
             // TOGGLE INVENTORY DENGAN TOMBOL 'E'
@@ -676,7 +676,12 @@ isInventoryOpen = false;
                 return;
             }
 
-            // Update Tampilan UI Quickbar & Inventory Grid
+            // PINDAH SLOT QUICKBAR DENGAN ANGKA 1 - 4
+            if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+                let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
+                activeQuickSlot = slotIdx;
+                
+                // Update Tampilan UI Quickbar & Inventory Grid
                 document.querySelectorAll('.quick-slot').forEach((el, idx) => {
                     el.classList.toggle('active', idx === slotIdx);
                 });
@@ -687,6 +692,7 @@ isInventoryOpen = false;
             }
 
             if (isInventoryOpen) return; // Kalau inventory lagi kebuka, abaikan tombol gerak game
+
             if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
             if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
             if (e.code === 'ShiftLeft') isSprinting = true;
@@ -697,6 +703,7 @@ isInventoryOpen = false;
             if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
             if (e.code === 'Space' && canJump && currentStamina >= 15) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
         });
+        
         document.addEventListener('keyup', (e) => {
             if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
             if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
