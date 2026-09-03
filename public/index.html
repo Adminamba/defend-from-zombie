@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Zombie Survival 3D Fixed</title>
+    <title>Zombie Survival 99 Days</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); color: #00ff00; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 100; display: none; }
@@ -13,10 +13,8 @@
         #flashlight-info { position: absolute; bottom: 20px; left: 20px; color: #ffd700; font-size: 18px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
         
         .overlay-screen { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 200; }
-        /* Background dim untuk overlay biasa */
         #login-overlay, #lobby-room-menu { background: rgba(0,0,0,0.85); }
         
-        /* LAYAR SPECTATOR: Posisi di bawah agar tak halangi pandangan */
         #death-screen { background: transparent; align-items: flex-end; padding-bottom: 40px; pointer-events: none; }
         #death-screen .menu-box { pointer-events: auto; background: rgba(20,20,20,0.8); padding: 15px 30px; width: 300px; border-width: 2px;}
         #death-screen h1 { font-size: 22px; margin-bottom: 5px; }
@@ -30,6 +28,7 @@
         #lobby-room-menu, #death-screen, #spectator-ui { display: none; }
         #damage-overlay { position: absolute; width: 100%; height: 100%; background: rgba(255,0,0,0.5); z-index: 150; display: none; pointer-events: none; }
         #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
+        #wave-announcer { position: absolute; top: 25%; width: 100%; text-align: center; color: #ff5500; font-size: 32px; font-weight: bold; z-index: 10; text-shadow: 3px 3px 6px #000; display: none; pointer-events: none;}
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
@@ -38,20 +37,18 @@
     <div id="damage-overlay"></div>
     <div id="crosshair">⌖</div>
     <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
-    <div id="level-ui">HARI KE- <span id="level">1</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
+    <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
     
-    <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 16px; color: white;">(Klik Kiri untuk ganti target)</span></div>
+    <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 14px; color: white;">(Klik Kiri ganti target | Tahan Klik Kanan + Geser Mouse putar kamera)</span></div>
+    <div id="wave-announcer">HARI SELESAI!<br><span style="font-size: 20px; color: #fff;" id="wave-timer">Waktu Persiapan: 120s</span></div>
 
-    <!-- Browser Room Publik Lobby -->
     <div id="login-overlay" class="overlay-screen">
         <div class="menu-box">
-            <h1 style="color: #FFD700; margin-top:0;">ZOMBIE MULTIPLAYER</h1>
+            <h1 style="color: #FFD700; margin-top:0;">ZOMBIE SURVIVAL 99 DAYS</h1>
             <input type="text" id="username-input" placeholder="Nama Kamu" maxlength="12">
-            
             <h3 style="margin-top: 20px;">Daftar Publik Room:</h3>
             <div id="room-list" style="margin-bottom: 15px;">Mencari Room...</div>
-            
             <hr style="border-color: #555;">
             <p>Atau Buat Room Baru:</p>
             <input type="text" id="room-name-input" placeholder="Nama Room Baru" maxlength="15">
@@ -59,17 +56,15 @@
         </div>
     </div>
 
-    <!-- Lobby Room -->
     <div id="lobby-room-menu" class="overlay-screen">
         <div class="menu-box" style="border-color: #00ff00;">
             <h1 id="lobby-title" style="color: #00ff00; margin-top:0;">DALAM ROOM</h1>
             <p>Player Terkoneksi: <span id="lobby-player-count">1</span>/5</p>
-            <button id="btn-start-game">🔥 MULAI SURVIVAL 🔥</button>
+            <button id="btn-start-game">🔥 MULAI SURVIVAL 99 HARI 🔥</button>
             <button id="btn-resume" style="display:none; background:#ccc;">Lanjutkan (Tekan Q)</button>
         </div>
     </div>
 
-    <!-- Death Screen Spectator Bawah -->
     <div id="death-screen" class="overlay-screen">
         <div class="menu-box" style="border-color: #ff0000;">
             <h1 style="color: #ff0000; margin-top:0;">KAMU TEWAS!</h1>
@@ -97,6 +92,7 @@
         let isSpectating = false;
         let spectateTargets = [];
         let spectateIndex = 0;
+        let flashlightOn = true;
 
         let audioCtx = null;
         function initAudio() {
@@ -127,7 +123,7 @@
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x11131e); 
-        scene.fog = new THREE.FogExp2(0x11131e, 0.006); // Disesuaikan untuk map yang makin luas
+        scene.fog = new THREE.FogExp2(0x11131e, 0.006);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.y = 5.5; 
@@ -150,6 +146,19 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
+        // API UNGGUN (CAMPFIRE) DI TENGAH BASE (0,0)
+        const campfireGroup = new THREE.Group();
+        campfireGroup.position.set(0, 0, 0);
+        const logMat = new THREE.MeshStandardMaterial({ color: 0x5a3d28 });
+        for(let i=0; i<4; i++) {
+            let log = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), logMat);
+            log.rotation.z = Math.PI/3; log.rotation.y = (i * Math.PI)/2;
+            campfireGroup.add(log);
+        }
+        const campfireLight = new THREE.PointLight(0xff5500, 150, 65);
+        campfireLight.position.y = 1.5; campfireGroup.add(campfireLight);
+        scene.add(campfireGroup);
+
         function buildWalls(wallsData) {
             serverWalls = wallsData;
             serverWalls.forEach(w => {
@@ -162,23 +171,19 @@
                 baseBox.position.set(0, w.height / 2, 0); 
                 group.add(baseBox);
 
-                // INTERIOR VISUAL & HIASAN 3D TAMBAHAN
                 if (w.name === "Rumah_Putih") {
                     const roof = new THREE.Mesh(new THREE.ConeGeometry(20, 8, 4), new THREE.MeshStandardMaterial({ color: 0x990000 }));
                     roof.position.set(0, w.height + 4, 0); roof.rotation.y = Math.PI / 4; group.add(roof);
-                    // Chest Inventory
                     const chest = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshStandardMaterial({ color: 0x8B4513 }));
                     chest.position.set(0, 1.5, 0); group.add(chest);
                 } else if (w.name === "Rumah_Hijau") {
                     const canopy = new THREE.Mesh(new THREE.BoxGeometry(w.width + 2, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
                     canopy.position.set(0, w.height - 1, w.depth/2 + 1.5); group.add(canopy);
-                    // Rak Senjata
                     const weaponRack = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 1), new THREE.MeshStandardMaterial({ color: 0x555555 }));
                     weaponRack.position.set(0, 2.5, -4); group.add(weaponRack);
                 } else if (w.name === "Rumah_Biru") {
                     const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
                     ant.position.set(0, w.height + 2, 0); group.add(ant);
-                    // Pod / Kapsul Sewa Robot
                     const pod = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 6, 16), new THREE.MeshStandardMaterial({ color: 0x4444ff, transparent: true, opacity: 0.6 }));
                     pod.position.set(0, 3, 0); group.add(pod);
                 }
@@ -236,26 +241,22 @@
         let respawnInterval = null;
         document.getElementById('btn-respawn').addEventListener('click', () => {
             socket.emit('requestRespawn');
-            controls.lock(); // KUNCI KURSOR LANGSUNG DI SINI BIAR BROWSER GAK NGEBLOCK!
+            controls.lock();
         });
+
         socket.on('respawnApproved', (pData) => {
             document.getElementById('death-screen').style.display = 'none';
             document.getElementById('spectator-ui').style.display = 'none';
-            
             camera.position.set(pData.x, 5.5, pData.z);
             camera.rotation.set(0, 0, 0); 
             
             gunGroup.visible = true;
-            if (typeof flashlightOn !== 'undefined' && flashlightOn) flashlight.visible = true;
+            if (flashlightOn) flashlight.visible = true;
 
-            myHp = 100; 
-            isSpectating = false; 
-            specAngleX = 0; // Reset rotasi kamera
-            specAngleY = 0;
-            updateUI(); 
+            myHp = 100; isSpectating = false; specAngleX = 0; specAngleY = 0; updateUI(); 
         });
 
-        socket.on('gameOverReset', () => { alert("Tim tewas! Reset ulang."); location.reload(); });
+        socket.on('gameOverReset', () => { alert("Api Unggun hancur atau tim tewas! Game Over."); location.reload(); });
 
         controls.addEventListener('lock', () => {
             isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none';
@@ -270,30 +271,25 @@
             }
         });
 
-        // PEMAIN: MATA & TANGAN LURUS MENGHADAP DEPAN
         function createHumanoidModel(colorHex, username) {
             const group = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; group.add(body);
             
-            // Kepala & Mata
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; 
             const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
             const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 0.2, -0.76); // Negatif Z adalah depan pemain (menghadap -Z)
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 0.2, -0.76);
             const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 0.2, -0.76);
             head.add(eyeL); head.add(eyeR);
             group.add(head);
 
             const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); armL.position.set(-1.4, 3, 0); group.add(armL);
-            
-            // Tangan Kanan Megang Pistol: Lurus ke Depan
             const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); 
-            armR.position.set(1.4, 3.5, -0.5); // Geser dikit ke depan dan atas biar pas di bahu
-            armR.rotation.x = -Math.PI / 2; // FIX: LURUS KE DEPAN (90 Derajat)
+            armR.position.set(1.4, 3.5, -0.5); armR.rotation.x = -Math.PI / 2;
             
             const tGun = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 2), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-            tGun.position.set(0, -1.2, 0); armR.add(tGun); // Sesuaikan pistol di ujung tangan
-            const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -2.2, 0); tGun.add(oFlash); // Flash di moncong
+            tGun.position.set(0, -1.2, 0); armR.add(tGun);
+            const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -2.2, 0); tGun.add(oFlash);
             group.add(armR);
 
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); group.add(legL);
@@ -322,8 +318,6 @@
             let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
             const faceTex = info.type === 'boss' ? faceBoss : (info.type === 'kuat' ? faceKuat : faceKroco);
             const matBody = new THREE.MeshStandardMaterial({ color: color });
-            
-            // Material Muka Menghadap -Z
             const matHead = [ new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({map: faceTex}) ];
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
@@ -350,7 +344,9 @@
         }
 
         socket.on('initGameData', (data) => {
-            isGameStarted = (data.gameState === 'PLAYING'); document.getElementById('level').innerText = data.currentLevel;
+            isGameStarted = (data.gameState === 'PLAYING'); 
+            document.getElementById('level').innerText = data.currentLevel;
+            document.getElementById('campfire-hp').innerText = data.campfireHp;
             if (wallMeshes.length === 0) buildWalls(data.walls);
             Object.keys(data.players).forEach(id => { if(id !== socket.id) addOtherPlayer(data.players[id]); });
             updateUI(); if(isGameStarted) spawnZombiesClient(data.zombies);
@@ -362,11 +358,10 @@
         socket.on('playerMoved', (info) => {
             if (otherPlayers[info.id] && otherPlayers[info.id].userData.hp > 0) {
                 otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
-                otherPlayers[info.id].rotation.y = info.rotationY; // Sync Rotasi (Tubuh ikuti hadapan kamera)
+                otherPlayers[info.id].rotation.y = info.rotationY;
             }
         });
 
-        // EFEK LASER TEMBAKAN TEMAN (Ngikut rotasi)
         socket.on('otherPlayerShot', (id) => {
             if (otherPlayers[id]) {
                 const flash = otherPlayers[id].userData.oFlash;
@@ -374,10 +369,8 @@
                 
                 let startPos = new THREE.Vector3();
                 flash.getWorldPosition(startPos);
-                
-                // Laser Lurus ke depan sesuai arah temen
                 let forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), otherPlayers[id].rotation.y);
-                let endPos = startPos.clone().add(forward.multiplyScalar(60)); // Panjang laser 60
+                let endPos = startPos.clone().add(forward.multiplyScalar(60));
                 
                 const geo = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
                 const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
@@ -385,7 +378,12 @@
             }
         });
 
-        socket.on('gameStarted', (level) => { isGameStarted = true; document.getElementById('level').innerText = level; controls.lock(); });
+        socket.on('gameStarted', (level) => { 
+            isGameStarted = true; document.getElementById('level').innerText = level; 
+            document.getElementById('wave-announcer').style.display = 'none';
+            controls.lock(); 
+        });
+
         socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
         
         socket.on('updateZombiesPosition', (zombieData) => {
@@ -396,6 +394,27 @@
                     zombies[zid].userData.hbMesh.lookAt(camera.position);
                 }
             }
+        });
+
+        socket.on('campfireHpUpdate', (data) => {
+            document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
+        });
+
+        socket.on('waveCleared', (data) => {
+            const announcer = document.getElementById('wave-announcer');
+            const timerText = document.getElementById('wave-timer');
+            announcer.style.display = 'block';
+            let timeLeft = data.cooldown;
+            timerText.innerText = `Waktu Persiapan Menuju Hari ke-${data.nextLevel}: ${timeLeft}s`;
+
+            let waveInterval = setInterval(() => {
+                timeLeft--;
+                timerText.innerText = `Waktu Persiapan Menuju Hari ke-${data.nextLevel}: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(waveInterval);
+                    announcer.style.display = 'none';
+                }
+            }, 1000);
         });
 
         function shatterModel(modelGroup) {
@@ -419,7 +438,10 @@
             }
         });
 
-        socket.on('levelUp', (level) => { document.getElementById('level').innerText = level; myHp = Math.min(100, myHp + 30); updateUI(); });
+        socket.on('levelUp', (level) => { 
+            document.getElementById('level').innerText = level; 
+            myHp = Math.min(100, myHp + 30); updateUI(); 
+        });
 
         socket.on('playerHpUpdate', (data) => {
             if (data.id === socket.id && myHp > 0) {
@@ -442,7 +464,6 @@
                     spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
                     spectateIndex = 0;
 
-                    // [FIX] Pastikan timer selalu reset ke 60 detik setiap kali mati kapanpun
                     let timeLeft = 60; 
                     document.getElementById('countdown').innerText = timeLeft;
                     const btnRespawn = document.getElementById('btn-respawn');
@@ -464,7 +485,6 @@
             } else if (otherPlayers[data.id]) {
                 otherPlayers[data.id].userData.hp = data.hp; updatePlayerLabel(otherPlayers[data.id]);
                 if (data.hp > 0 && !otherPlayers[data.id].visible) { otherPlayers[data.id].visible = true; }
-                
                 if (data.hp <= 0 && otherPlayers[data.id].visible) {
                     shatterModel(otherPlayers[data.id]);
                     spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
@@ -493,30 +513,25 @@
 
         const raycaster = new THREE.Raycaster(); let lasers = [];
 
-        // MATIKAN MENU KLIK KANAN BAWAAN BROWSER
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // LOGIKA DRAG KAMERA SPECTATOR (TAHAN KLIK KANAN)
         let specAngleX = 0;
         let specAngleY = 0;
         window.addEventListener('mousemove', (e) => {
-            if (isSpectating && e.buttons === 2) { // 2 = Tahan Klik Kanan
+            if (isSpectating && e.buttons === 2) {
                 specAngleX -= e.movementX * 0.005;
                 specAngleY -= e.movementY * 0.005;
-                // Batasi kamera biar gak jungkir balik
                 specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
             }
         });
 
         window.addEventListener('mousedown', (e) => {
-            // [FITUR BARU] Klik Kiri (0) untuk ganti target walau kursor lagi dilepas!
             if (isSpectating && e.button === 0) { 
                 spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
                 if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
                 return;
             }
 
-            // [LOGIKA NEMBAK ASLI]
             if (controls.isLocked && myHp > 0 && e.button === 0) {
                 playGunSound();
                 socket.emit('playerShootVisual');
@@ -547,8 +562,6 @@
 
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
-        
-        let flashlightOn = true; // [FIX] Mengembalikan variabel senter yang hilang
 
         document.addEventListener('keydown', (e) => {
             if (isPaused || myHp <= 0) return;
@@ -592,7 +605,6 @@
                     let distance = 18;
                     let heightOffset = 6;
                     
-                    // [FIX] Kamera diperhalus menggunakan lerp agar gerakannya mulus ala game Third Person modern
                     let yaw = target.rotation.y + specAngleX;
                     let targetOffsetX = Math.sin(yaw) * distance;
                     let targetOffsetZ = Math.cos(yaw) * distance;
@@ -604,19 +616,13 @@
                         target.position.z + targetOffsetZ
                     );
 
-                    // Transisi posisi kamera dihaluskan (Lerp)
                     camera.position.lerp(idealCameraPos, 0.1);
-
-                    // Transisi arah pandang kamera dihaluskan ke badan teman
                     let idealLookAt = target.position.clone().add(new THREE.Vector3(0, 2, 0));
-                    let currentLookAt = new THREE.Vector3();
-                    camera.getWorldDirection(currentLookAt); // Dummy calculation
-                    
                     camera.lookAt(idealLookAt);
                     
                     document.getElementById('spec-name').innerText = target.userData.username;
                 } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
-            }
+            } 
             else if (controls.isLocked && myHp > 0) {
                 let oldX = camera.position.x; let oldZ = camera.position.z;
 
@@ -641,7 +647,6 @@
                 camera.position.y += (velocity.y * delta);
                 if (camera.position.y < 5.5) { velocity.y = 0; camera.position.y = 5.5; canJump = true; }
 
-                // [FIX] Kalkulasi arah mata angin dunia 3D yang 100% akurat
                 let camDir = new THREE.Vector3();
                 camera.getWorldDirection(camDir);
                 let currentRotY = Math.atan2(camDir.x, camDir.z) + Math.PI;
@@ -658,7 +663,6 @@
                     if (distMoved > 0.02) {
                         p.userData.walkTime = (p.userData.walkTime || 0) + 15 * delta;
                         let swing = Math.sin(p.userData.walkTime) * 0.8;
-                        // Badan gerak lari tapi pistol tetep stabil ngarah ke depan
                         p.userData.armL.rotation.x = swing; 
                         p.userData.legL.rotation.x = -swing; p.userData.legR.rotation.x = swing;
                     } else {
