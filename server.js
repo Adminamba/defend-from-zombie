@@ -256,8 +256,10 @@ io.on('connection', (socket) => {
 
 // PENGATURAN PORT DINAMIS UNTUK RAILWAY & LOCALHOST
 // =========================================================
+// =========================================================
+// PENGATURAN PORT DINAMIS UNTUK RAILWAY & LOCALHOST
+// =========================================================
 const PORT = process.env.PORT || 8080;
 http.listen(PORT, '0.0.0.0', () => { 
     console.log(`Server jalan di port ${PORT}`); 
 });
-
