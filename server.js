@@ -41,7 +41,6 @@ function generateBaseWalls() {
 
     return walls;
 }
-}
 
 function spawnZombies(room) {
     room.zombies = {}; 
