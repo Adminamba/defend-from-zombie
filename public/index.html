@@ -540,6 +540,8 @@
 
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
+        
+        let flashlightOn = true; // [FIX] Mengembalikan variabel senter yang hilang
 
         document.addEventListener('keydown', (e) => {
             if (isPaused || myHp <= 0) return;
@@ -620,7 +622,12 @@
                 camera.position.y += (velocity.y * delta);
                 if (camera.position.y < 5.5) { velocity.y = 0; camera.position.y = 5.5; canJump = true; }
 
-                socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: camera.rotation.y });
+                // [FIX] Kalkulasi arah mata angin dunia 3D yang 100% akurat
+                let camDir = new THREE.Vector3();
+                camera.getWorldDirection(camDir);
+                let currentRotY = Math.atan2(camDir.x, camDir.z) + Math.PI;
+
+                socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
             }
 
             Object.values(otherPlayers).forEach(p => { 
