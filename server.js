@@ -254,10 +254,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// Ganti kode listen lama Anda dengan ini:
-const PORT = process.env.PORT || 5500;
-
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server berjalan di port ${PORT}`);
+// PENGATURAN PORT DINAMIS UNTUK RAILWAY & LOCALHOST
+// =========================================================
+const PORT = process.env.PORT || 8080;
+http.listen(PORT, '0.0.0.0', () => { 
+    console.log(`Server jalan di port ${PORT}`); 
 });
 
