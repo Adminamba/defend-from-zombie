@@ -146,29 +146,29 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
-      // API UNGGUN RAKSASA DIPERBESAR 20% DI TENGAH BASE (0,0)
+     // API UNGGUN RAKSASA DIPERBESAR 60% DI TENGAH BASE (0,0)
         const campfireGroup = new THREE.Group();
         campfireGroup.position.set(0, 0, 0);
         
-        // Tumpukan Kayu Raksasa (Diperbesar 20% dari sebelumnya: radius 0.72, panjang 8.4)
+        // Tumpukan Kayu Raksasa (Diperbesar 60%: radius 1.15, panjang 13.4)
         const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
-        for(let i = 0; i < 9; i++) {
-            let log = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 8.4), logMat);
-            log.position.set((Math.random()-0.5)*2.4, 3, (Math.random()-0.5)*2.4);
+        for(let i = 0; i < 11; i++) {
+            let log = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 13.4), logMat);
+            log.position.set((Math.random()-0.5)*3.8, 4.5, (Math.random()-0.5)*3.8);
             log.rotation.z = (Math.random() - 0.5) * 0.8;
             log.rotation.x = (Math.random() - 0.5) * 0.8;
             campfireGroup.add(log);
         }
         
-        // Cahaya Api Raksasa (Radius cahaya & intensitas ditambah)
-        const campfireLight = new THREE.PointLight(0xff4500, 360, 120);
-        campfireLight.position.y = 5; campfireGroup.add(campfireLight);
+        // Cahaya Api Raksasa (Jangkauan dan intensitas cahaya diperbesar)
+        const campfireLight = new THREE.PointLight(0xff4500, 500, 180);
+        campfireLight.position.y = 8; campfireGroup.add(campfireLight);
 
-        // Healthbar 3D di atas Api Unggun Raksasa
+        // Healthbar 3D di atas Api Unggun Raksasa (Diperbesar 60%)
         const cfCanvas = document.createElement('canvas'); cfCanvas.width = 256; cfCanvas.height = 64;
         const cfCtx = cfCanvas.getContext('2d'); const cfTexture = new THREE.CanvasTexture(cfCanvas);
-        const cfMesh = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 1.8), new THREE.MeshBasicMaterial({ map: cfTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-        cfMesh.position.y = 11; campfireGroup.add(cfMesh); // Posisi healthbar dinaikin dikit ngikutin tinggi kayu
+        const cfMesh = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 2.9), new THREE.MeshBasicMaterial({ map: cfTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
+        cfMesh.position.y = 17.5; campfireGroup.add(cfMesh); // Posisi healthbar dinaikin menyesuaikan tinggi kayu raksasa
         
         function updateCampfireLabel(currentHp, maxHp) {
             cfCtx.clearRect(0, 0, 256, 64);
