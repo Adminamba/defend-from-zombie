@@ -146,19 +146,42 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
-        // API UNGGUN (CAMPFIRE) DI TENGAH BASE (0,0)
+       // API UNGGUN RAKSASA DI TENGAH BASE (0,0) DENGAN HEALTHBAR 3D
         const campfireGroup = new THREE.Group();
         campfireGroup.position.set(0, 0, 0);
-        const logMat = new THREE.MeshStandardMaterial({ color: 0x5a3d28 });
-        for(let i=0; i<4; i++) {
-            let log = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), logMat);
-            log.rotation.z = Math.PI/3; log.rotation.y = (i * Math.PI)/2;
+        
+        // Tumpukan Kayu Rksasa (Lebih tinggi dari player)
+        const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
+        for(let i = 0; i < 8; i++) {
+            let log = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 7), logMat);
+            log.position.set((Math.random()-0.5)*2, 2.5, (Math.random()-0.5)*2);
+            log.rotation.z = (Math.random() - 0.5) * 0.8;
+            log.rotation.x = (Math.random() - 0.5) * 0.8;
             campfireGroup.add(log);
         }
-        const campfireLight = new THREE.PointLight(0xff5500, 150, 65);
-        campfireLight.position.y = 1.5; campfireGroup.add(campfireLight);
+        
+        // Cahaya Api Raksasa
+        const campfireLight = new THREE.PointLight(0xff4500, 300, 100);
+        campfireLight.position.y = 4; campfireGroup.add(campfireLight);
+
+        // Healthbar 3D di atas Api Unggun (Bisa dilihat dari semua arah / Sprite Canvas)
+        const cfCanvas = document.createElement('canvas'); cfCanvas.width = 256; cfCanvas.height = 64;
+        const cfCtx = cfCanvas.getContext('2d'); const cfTexture = new THREE.CanvasTexture(cfCanvas);
+        const cfMesh = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), new THREE.MeshBasicMaterial({ map: cfTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
+        cfMesh.position.y = 9; campfireGroup.add(cfMesh);
+        
+        function updateCampfireLabel(currentHp, maxHp) {
+            cfCtx.clearRect(0, 0, 256, 64);
+            cfCtx.font = 'Bold 22px Arial'; cfCtx.fillStyle = '#ff7700'; cfCtx.textAlign = 'center'; cfCtx.fillText('🔥 API UNGGUN 🔥', 128, 22);
+            cfCtx.fillStyle = '#333'; cfCtx.fillRect(28, 32, 200, 20); 
+            cfCtx.fillStyle = '#ff3300'; cfCtx.fillRect(28, 32, Math.max(0, (currentHp / maxHp) * 200), 20);
+            cfCtx.strokeStyle = '#ffffff'; cfCtx.lineWidth = 3; cfCtx.strokeRect(28, 32, 200, 20); 
+            cfTexture.needsUpdate = true;
+        }
+        updateCampfireLabel(200, 200);
         scene.add(campfireGroup);
 
+        
         function buildWalls(wallsData) {
             serverWalls = wallsData;
             serverWalls.forEach(w => {
@@ -398,6 +421,7 @@
 
         socket.on('campfireHpUpdate', (data) => {
             document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
+            updateCampfireLabel(data.hp, 200); // Update tampilan bar 3D raksasa di atas api
         });
 
         socket.on('waveCleared', (data) => {
@@ -672,6 +696,11 @@
                     p.userData.lastPos.copy(p.position);
                 }
             });
+
+            // [BAGIAN C] Healthbar api unggun raksasa selalu menghadap kamera
+            if (typeof cfMesh !== 'undefined' && cfMesh) {
+                cfMesh.lookAt(camera.position);
+            }
             
             prevTime = time; renderer.render(scene, camera);
         }
