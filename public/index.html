@@ -63,6 +63,27 @@
         }
         .quick-slot.active { border: 3px solid #ffff00; box-shadow: 0 0 10px #ffff00, inset 2px 2px 0px #fff, inset -2px -2px 0px #555; }
         .slot-num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: #111; font-weight: bold; }
+
+        /* ================= STYLING SHOP & KOIN ================= */
+        #coin-display {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10;
+            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; border: 2px solid #FFD700;
+        }
+        #shop-prompt {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 20px; font-weight: bold; z-index: 10; display: none;
+            text-shadow: 2px 2px 4px #000; background: rgba(0,255,0,0.4); padding: 10px 20px; border-radius: 8px;
+        }
+        #shop-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(20, 30, 20, 0.95); border: 4px solid #00ff00; border-radius: 6px;
+            padding: 20px; z-index: 500; display: none; text-align: left; color: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9); width: 550px; max-height: 80vh; overflow-y: auto;
+        }
+        .shop-item { background: #222; border: 2px solid #555; padding: 12px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .shop-btn { background: #00ff00; color: #000; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
+        .shop-btn:hover { background: #fff; }
         
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -70,6 +91,14 @@
 </head>
 <body>
     <div id="damage-overlay"></div>
+    <div id="coin-display">💰 Koin: <span id="my-coins">0</span></div>
+    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata</div>
+    
+    <div id="shop-modal">
+        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA (Rumah Hijau)</h2>
+        <div id="shop-items-container"></div>
+        <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:0;">Tekan B lagi atau tutup layar untuk keluar.</p>
+    </div>
     <div id="crosshair">⌖</div>
     <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
     <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
@@ -602,47 +631,108 @@ isInventoryOpen = false;
             document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%';
         }
 
-        const raycaster = new THREE.Raycaster(); let lasers = [];
-
+       const raycaster = new THREE.Raycaster(); let lasers = [];
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        let specAngleX = 0;
-        let specAngleY = 0;
-        window.addEventListener('mousemove', (e) => {
-            if (isSpectating && e.buttons === 2) {
-                specAngleX -= e.movementX * 0.005;
-                specAngleY -= e.movementY * 0.005;
-                specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
-            }
+        // ================= FITUR SENJATA, TOKO & NPC =================
+        let myCoins = 0; let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
+        
+        const WEAPONS = {
+            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, price: 0, maxLv: 5 },
+            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 4, fireRate: 500, auto: false, spread: 0, bullets: 1, price: 300, maxLv: 10 },
+            'uzi': { id: 'uzi', name: 'Uzi', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.05, bullets: 1, price: 1000, maxLv: 10 },
+            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, price: 2500, maxLv: 10 },
+            'shotgun': { id: 'shotgun', name: 'Shotgun', icon: '💥', baseDmg: 12, fireRate: 800, auto: false, spread: 0.15, bullets: 6, price: 4500, maxLv: 10 },
+            'm249': { id: 'm249', name: 'M249', icon: '🔥', baseDmg: 18, fireRate: 150, auto: true, spread: 0.04, bullets: 1, price: 9000, maxLv: 10 }
+        };
+        let ownedWeapons = { 'default': 1 }; 
+        let quickbarSlots = ['default', null, null, null]; // Quickbar 1-4
+        
+        // NPC Penjaga (Rumah Hijau)
+        const npcGroup = new THREE.Group();
+        const npcBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3, 1.5), new THREE.MeshStandardMaterial({ color: 0x00ff00 })); npcBody.position.y = 3; npcGroup.add(npcBody);
+        const npcHead = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); npcHead.position.y = 5; npcGroup.add(npcHead);
+        npcGroup.position.set(55, 0, 30); scene.add(npcGroup); // Posisi Rumah Hijau
+
+        socket.on('coinReward', (amount) => { 
+            myCoins += amount; document.getElementById('my-coins').innerText = myCoins; 
+            if (isShopOpen) renderShop(); 
         });
 
-        window.addEventListener('mousedown', (e) => {
-            // Jika inventory terbuka dan user klik di luar kotak modal inventory -> Tutup inventory
-            if (isInventoryOpen) {
-                const modal = document.getElementById('inventory-modal');
-                if (modal && !modal.contains(e.target)) {
-                    isInventoryOpen = false;
-                    modal.style.display = 'none';
-                    if (!isSpectating) controls.lock();
-                }
-                return;
+        window.buyWeapon = function(key) {
+            let w = WEAPONS[key];
+            if (myCoins >= w.price) {
+                myCoins -= w.price; ownedWeapons[key] = 1; document.getElementById('my-coins').innerText = myCoins;
+                renderShop(); if (isInventoryOpen) renderInventory();
+            } else alert("Koin tidak cukup!");
+        };
+
+        window.upgradeWeapon = function(key, cost) {
+            if (myCoins >= cost) {
+                myCoins -= cost; ownedWeapons[key]++; document.getElementById('my-coins').innerText = myCoins;
+                renderShop();
+            } else alert("Koin tidak cukup!");
+        };
+
+        function renderShop() {
+            const container = document.getElementById('shop-items-container'); container.innerHTML = '';
+            Object.keys(WEAPONS).forEach(key => {
+                if (key === 'default') return;
+                let w = WEAPONS[key]; let itemDiv = document.createElement('div'); itemDiv.className = 'shop-item';
+                let isOwned = ownedWeapons[key] !== undefined; let lv = ownedWeapons[key] || 0;
+                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | ${w.auto ? 'Tahan Klik (Auto)' : 'Sekali Klik'}</span></div>`;
+                if (!isOwned) {
+                    html += `<button class="shop-btn" onclick="buyWeapon('${key}')">Beli (${w.price} Koin)</button>`;
+                } else if (lv < w.maxLv) {
+                    let upgCost = w.price + (lv * Math.floor(w.price * 0.5));
+                    html += `<div><span style="color:#00ff00;margin-right:10px;">Lv.${lv}</span><button class="shop-btn" onclick="upgradeWeapon('${key}', ${upgCost})">Upgrade (${upgCost} Koin)</button></div>`;
+                } else html += `<div><span style="color:#ffff00; font-weight:bold;">MAX LVL</span></div>`;
+                itemDiv.innerHTML = html; container.appendChild(itemDiv);
+            });
+        }
+
+        // Render Inventory yang nyambung ke Quickbar
+        function renderInventory() {
+            let invGrid = document.getElementById('inventory-grid'); invGrid.innerHTML = '';
+            let ownedIds = Object.keys(ownedWeapons);
+            for (let i = 0; i < 12; i++) {
+                let slot = document.createElement('div'); slot.className = 'inv-slot';
+                if (i < ownedIds.length) {
+                    let wId = ownedIds[i]; slot.innerHTML = WEAPONS[wId].icon;
+                    slot.onclick = () => {
+                        quickbarSlots[activeQuickSlot] = wId; 
+                        document.getElementById('quick-' + activeQuickSlot).innerHTML = `<span class="slot-num">${activeQuickSlot+1}</span>${WEAPONS[wId].icon}`;
+                    };
+                } else slot.innerHTML = '📦';
+                invGrid.appendChild(slot);
             }
+        }
+
+        function fireWeapon() {
+            let now = performance.now();
+            let wId = quickbarSlots[activeQuickSlot] || 'default';
+            let wInfo = WEAPONS[wId]; let wLv = ownedWeapons[wId] || 1;
             
-            if (isSpectating && e.button === 0) { 
-                spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-                if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
-                return;
-            }
+            if (now - lastShotTime < wInfo.fireRate) return;
+            lastShotTime = now;
 
-            if (controls.isLocked && myHp > 0 && e.button === 0) {
-                playGunSound();
-                socket.emit('playerShootVisual');
-                muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+            // Damage naik pesat per upgrade!
+            let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
 
+            playGunSound(); socket.emit('playerShootVisual');
+            muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+            gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
+
+            for(let i=0; i<wInfo.bullets; i++) {
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                if (wInfo.spread > 0) { // Sistem Spread (Khusus Shotgun dll)
+                    let dir = raycaster.ray.direction.clone();
+                    dir.x += (Math.random() - 0.5) * wInfo.spread; dir.y += (Math.random() - 0.5) * wInfo.spread; dir.z += (Math.random() - 0.5) * wInfo.spread;
+                    dir.normalize(); raycaster.ray.direction.copy(dir);
+                }
+
                 let collidableMeshes = [...wallMeshes];
                 Object.values(zombies).forEach(z => z.children.forEach(c => { if(!c.userData.isLabel) collidableMeshes.push(c); }));
-                
                 let intersects = raycaster.intersectObjects(collidableMeshes);
                 let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
                 let targetPoint = new THREE.Vector3();
@@ -650,52 +740,83 @@ isInventoryOpen = false;
                 if (intersects.length > 0) {
                     targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
                     if (hitMesh.parent && hitMesh.parent.userData.id) {
-                        socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body' });
+                        socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body', damage: finalDmg });
                     }
                 } else { raycaster.ray.at(300, targetPoint); }
 
                 const geo = new THREE.BufferGeometry().setFromPoints([gunTip, targetPoint]);
                 const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
                 scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
+            }
+        }
 
-                gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
+        let specAngleX = 0; let specAngleY = 0;
+        window.addEventListener('mousemove', (e) => {
+            if (isSpectating && e.buttons === 2) {
+                specAngleX -= e.movementX * 0.005; specAngleY -= e.movementY * 0.005; specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
             }
         });
+
+        window.addEventListener('mousedown', (e) => {
+            if (isInventoryOpen) {
+                const modal = document.getElementById('inventory-modal');
+                if (modal && !modal.contains(e.target)) {
+                    isInventoryOpen = false; modal.style.display = 'none'; if (!isSpectating) controls.lock();
+                } return;
+            }
+            if (isShopOpen) {
+                const sModal = document.getElementById('shop-modal');
+                if (sModal && !sModal.contains(e.target)) {
+                    isShopOpen = false; sModal.style.display = 'none'; if (!isSpectating) controls.lock();
+                } return;
+            }
+            if (isSpectating && e.button === 0) { 
+                spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+                if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
+                return;
+            }
+            if (controls.isLocked && myHp > 0 && e.button === 0) {
+                isShooting = true; fireWeapon(); // Tembakan pertama langsung
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => { if (e.button === 0) isShooting = false; });
 
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
 
-    document.addEventListener('keydown', (e) => {
+   document.addEventListener('keydown', (e) => {
             if (isPaused) return;
 
-            // TOGGLE INVENTORY DENGAN TOMBOL 'E' (TIDAK MEMICU PAUSE MENU HITAM)
+            // BUKA TOKO DENGAN TOMBOL 'B'
+            if (e.code === 'KeyB') {
+                if (myHp <= 0) return;
+                let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
+                if (distToNPC < 15) { // Cek Jarak dengan NPC
+                    isShopOpen = !isShopOpen; const shopModal = document.getElementById('shop-modal');
+                    if (isShopOpen) { renderShop(); shopModal.style.display = 'block'; controls.unlock(); } 
+                    else { shopModal.style.display = 'none'; controls.lock(); }
+                } return;
+            }
+
+            // TOGGLE INVENTORY DENGAN TOMBOL 'E' (TIDAK MEMICU PAUSE)
             if (e.code === 'KeyE') {
-                if (myHp <= 0) return; // Mati tidak bisa buka inventory
-                isInventoryOpen = !isInventoryOpen;
-                const invModal = document.getElementById('inventory-modal');
-                if (isInventoryOpen) {
-                    invModal.style.display = 'block';
-                    controls.unlock(); // Lepas kunci kursor biar bisa digerakkan dalam inventory
-                } else {
-                    invModal.style.display = 'none';
-                    controls.lock(); // Kunci lagi kursor ke game
-                }
+                if (myHp <= 0) return; 
+                isInventoryOpen = !isInventoryOpen; const invModal = document.getElementById('inventory-modal');
+                if (isInventoryOpen) { renderInventory(); invModal.style.display = 'block'; controls.unlock(); } 
+                else { invModal.style.display = 'none'; controls.lock(); }
                 return;
             }
 
-            // PINDAH SLOT QUICKBAR DI BAWAH LAYAR DENGAN ANGKA 1 - 4 (BISA DIKESEHARI-HARI TANPA BATAS)
-            if (myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+            // PINDAH SLOT QUICKBAR DI BAWAH LAYAR DENGAN ANGKA 1 - 4
+            if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
                 let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
                 activeQuickSlot = slotIdx;
-                
-                // Update Tampilan UI Quickbar di Bawah Layar
-                document.querySelectorAll('.quick-slot').forEach((el, idx) => {
-                    el.classList.toggle('active', idx === slotIdx);
-                });
+                document.querySelectorAll('.quick-slot').forEach((el, idx) => { el.classList.toggle('active', idx === slotIdx); });
                 return;
             }
 
-            if (isInventoryOpen || myHp <= 0) return; // Kalau inventory lagi kebuka, abaikan tombol gerak game
+            if (isInventoryOpen || isShopOpen || myHp <= 0) return; // Kunci gerak kalau ada menu terbuka
 
             if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
             if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
@@ -786,6 +907,20 @@ isInventoryOpen = false;
 
                 socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
             }
+
+            // ================= LOGIKA NPC & AUTO SHOOT =================
+            let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
+            if (distToNPC < 15 && myHp > 0 && typeof isShopOpen !== 'undefined' && !isShopOpen) { 
+                document.getElementById('shop-prompt').style.display = 'block'; 
+            } else { 
+                document.getElementById('shop-prompt').style.display = 'none'; 
+            }
+
+            if (typeof isShooting !== 'undefined' && isShooting && controls.isLocked && myHp > 0) {
+                let wId = quickbarSlots[activeQuickSlot] || 'default';
+                if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon(); // Eksekusi tembakan memberondong (Auto)
+            }
+            // ==========================================================
 
             Object.values(otherPlayers).forEach(p => { 
                 if(p.visible) {
