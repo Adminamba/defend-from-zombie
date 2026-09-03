@@ -256,15 +256,15 @@ io.on('connection', (socket) => {
                         room.level++; 
                         if (room.level > 99) room.level = 99; // Max 99 Hari
 
-                        // JEDAH 2 MENIT (120 Detik) SEBELUM HARI BERIKUTNYA DIMULAI
-                        io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 120 });
+                       // JEDA 45 DETIK SEBELUM HARI BERIKUTNYA DIMULAI
+                        io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 45 });
                         
                         setTimeout(() => {
                             if (room.gameState === 'PLAYING') {
                                 spawnZombies(room); 
                                 io.to(socket.roomId).emit('levelUp', room.level);
                             }
-                        }, 120000); // 120 Detik
+                        }, 45000); // 45 Detik (45000 ms)
                     }
                 } else { io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp }); }
             }
