@@ -254,5 +254,10 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 8080;
-http.listen(PORT, () => { console.log(`Server jalan di port ${PORT}`); });
+// Ganti kode listen lama Anda dengan ini:
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server berjalan di port ${PORT}`);
+});
+
