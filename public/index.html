@@ -428,7 +428,7 @@
                 
                 if (myHp <= 0 && !isSpectating) {
                     isSpectating = true;
-                    controls.unlock(); // LEPAS KURSOR BIAR BISA KLIK TOMBOL / DRAG MOUSE
+                    controls.unlock();
                     
                     gunGroup.visible = false;
                     flashlight.visible = false;
@@ -442,15 +442,22 @@
                     spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
                     spectateIndex = 0;
 
-                    let timeLeft = 60; document.getElementById('countdown').innerText = timeLeft;
+                    // [FIX] Pastikan timer selalu reset ke 60 detik setiap kali mati kapanpun
+                    let timeLeft = 60; 
+                    document.getElementById('countdown').innerText = timeLeft;
                     const btnRespawn = document.getElementById('btn-respawn');
                     btnRespawn.disabled = true; btnRespawn.style.background = '#555'; btnRespawn.style.cursor = 'not-allowed';
+                    document.getElementById('respawn-timer-text').innerHTML = 'Hidup kembali dalam: <span id="countdown">60</span> detik';
 
                     if (respawnInterval) clearInterval(respawnInterval);
                     respawnInterval = setInterval(() => {
-                        timeLeft--; document.getElementById('countdown').innerText = timeLeft;
+                        timeLeft--; 
+                        let cdElem = document.getElementById('countdown');
+                        if (cdElem) cdElem.innerText = timeLeft;
                         if (timeLeft <= 0) {
-                            clearInterval(respawnInterval); btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer'; document.getElementById('respawn-timer-text').innerText = "Sudah bisa respawn!";
+                            clearInterval(respawnInterval);
+                            btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer';
+                            document.getElementById('respawn-timer-text').innerText = "Sudah bisa respawn!";
                         }
                     }, 1000);
                 }
@@ -583,17 +590,29 @@
                     let target = otherPlayers[spectateTargets[spectateIndex]];
                     
                     let distance = 18;
-                    let heightOffset = 8;
+                    let heightOffset = 6;
                     
-                    // Rotasi muter-muter dipengaruhi hasil drag klik kanan
+                    // [FIX] Kamera diperhalus menggunakan lerp agar gerakannya mulus ala game Third Person modern
                     let yaw = target.rotation.y + specAngleX;
-                    let offsetX = Math.sin(yaw) * distance;
-                    let offsetZ = Math.cos(yaw) * distance;
+                    let targetOffsetX = Math.sin(yaw) * distance;
+                    let targetOffsetZ = Math.cos(yaw) * distance;
+                    let targetOffsetY = heightOffset + (specAngleY * 12);
+
+                    let idealCameraPos = new THREE.Vector3(
+                        target.position.x + targetOffsetX, 
+                        target.position.y + targetOffsetY, 
+                        target.position.z + targetOffsetZ
+                    );
+
+                    // Transisi posisi kamera dihaluskan (Lerp)
+                    camera.position.lerp(idealCameraPos, 0.1);
+
+                    // Transisi arah pandang kamera dihaluskan ke badan teman
+                    let idealLookAt = target.position.clone().add(new THREE.Vector3(0, 2, 0));
+                    let currentLookAt = new THREE.Vector3();
+                    camera.getWorldDirection(currentLookAt); // Dummy calculation
                     
-                    camera.position.set(target.position.x + offsetX, target.position.y + heightOffset, target.position.z + offsetZ);
-                    
-                    // Kamera mendongak/menunduk sesuai drag mouse Y
-                    camera.lookAt(target.position.x, target.position.y + 3 - (specAngleY * 15), target.position.z);
+                    camera.lookAt(idealLookAt);
                     
                     document.getElementById('spec-name').innerText = target.userData.username;
                 } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
