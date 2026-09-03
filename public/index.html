@@ -30,36 +30,39 @@
         #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
         #wave-announcer { position: absolute; top: 25%; width: 100%; text-align: center; color: #ff5500; font-size: 32px; font-weight: bold; z-index: 10; text-shadow: 3px 3px 6px #000; display: none; pointer-events: none;}
 
-        /* ================= STYLING INVENTORY ================= */
+       /* ================= STYLING INVENTORY ALA MINECRAFT ================= */
         #inventory-modal {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(20, 20, 25, 0.92); border: 3px solid #FFD700; border-radius: 12px;
-            padding: 20px; z-index: 300; display: none; text-align: center; color: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 280px;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(20, 20, 25, 0.95); border: 4px solid #555; border-radius: 8px;
+            padding: 25px; z-index: 400; display: none; text-align: center; color: white;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9); width: 320px;
         }
         #inventory-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; justify-content: center;
         }
         .inv-slot {
-            width: 65px; height: 65px; background: rgba(40, 40, 50, 0.8); border: 2px solid #555;
-            border-radius: 8px; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; cursor: pointer; transition: 0.2s; position: relative; color: #fff;
+            width: 70px; height: 70px; background: #8b8b8b; border: 3px solid #373737;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 28px; cursor: pointer; position: relative; color: #fff;
+            box-shadow: inset 2px 2px 0px #fff, inset -2px -2px 0px #555;
         }
-        .inv-slot:hover { border-color: #FFD700; background: rgba(60, 60, 80, 0.9); }
-        .inv-slot.selected { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .inv-slot:hover { background: #9e9e9e; }
 
-        /* Quickbar Kecil di Bawah Layar */
+        /* Quickbar 4 Kotak di Bawah Layar (Hotbar Minecraft Style) */
         #quickbar-container {
-            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 6px; z-index: 100; display: none; pointer-events: none;
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; z-index: 100; display: none; pointer-events: none;
+            background: rgba(0, 0, 0, 0.4); padding: 6px; border-radius: 10px;
         }
         .quick-slot {
-            width: 45px; height: 45px; background: rgba(20, 20, 25, 0.7); border: 2px solid #555;
-            border-radius: 6px; display: flex; align-items: center; justify-content: center;
-            font-size: 16px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000;
+            width: 55px; height: 55px; background: #8b8b8b; border: 3px solid #373737;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: white; font-weight: bold; position: relative;
+            box-shadow: inset 2px 2px 0px #fff, inset -2px -2px 0px #555;
         }
-        .quick-slot.active { border-color: #00ff00; background: rgba(30, 60, 30, 0.8); }
-        .slot-num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #aaa; }
+        .quick-slot.active { border: 3px solid #ffff00; box-shadow: 0 0 12px #ffff00, inset 2px 2px 0px #fff, inset -2px -2px 0px #555; }
+        .slot-num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: #222; font-weight: bold; }
+        
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
@@ -87,28 +90,28 @@
         </div>
     </div>
 
-    <!-- Quickbar 4 Slot di Bawah Layar -->
+    <!-- Hotbar 4 Kotak di Bawah Layar -->
     <div id="quickbar-container">
-        <div class="quick-slot active" id="quick-1"><span class="slot-num">1</span>🔫</div>
-        <div class="quick-slot" id="quick-2"><span class="slot-num">2</span>💊</div>
-        <div class="quick-slot" id="quick-3"><span class="slot-num">3</span>⚡</div>
-        <div class="quick-slot" id="quick-4"><span class="slot-num">4</span>🛡️</div>
+        <div class="quick-slot active" id="quick-0"><span class="slot-num">1</span>🔫</div>
+        <div class="quick-slot" id="quick-1"><span class="slot-num">2</span>💊</div>
+        <div class="quick-slot" id="quick-2"><span class="slot-num">3</span>⚡</div>
+        <div class="quick-slot" id="quick-3"><span class="slot-num">4</span>🛡️</div>
     </div>
 
-    <!-- Inventory 3x3 Modal -->
+    <!-- Inventory Modal Besar 3x3 (Total 9 Kotak) -->
     <div id="inventory-modal">
-        <h2 style="margin: 0 0 5px 0; color: #FFD700; font-size: 20px;">INVENTORY (3x3)</h2>
-        <p style="font-size: 12px; color: #aaa; margin: 0;">Tekan Angka 1-4 untuk pindah slot</p>
+        <h2 style="margin: 0 0 5px 0; color: #FFD700; font-size: 22px;">INVENTORY</h2>
+        <p style="font-size: 12px; color: #aaa; margin: 0;">Penyimpanan Utama (3x3)</p>
         <div id="inventory-grid">
-            <div class="inv-slot selected" data-index="0">🔫</div>
-            <div class="inv-slot" data-index="1">💊</div>
-            <div class="inv-slot" data-index="2">⚡</div>
-            <div class="inv-slot" data-index="3">🛡️</div>
-            <div class="inv-slot" data-index="4">📦</div>
-            <div class="inv-slot" data-index="5">📦</div>
-            <div class="inv-slot" data-index="6">📦</div>
-            <div class="inv-slot" data-index="7">📦</div>
-            <div class="inv-slot" data-index="8">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div>
         </div>
     </div>
 
@@ -660,10 +663,11 @@ isInventoryOpen = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
 
       document.addEventListener('keydown', (e) => {
-            if (isPaused || myHp <= 0) return;
+            if (isPaused) return;
 
             // TOGGLE INVENTORY DENGAN TOMBOL 'E'
             if (e.code === 'KeyE') {
+                if (myHp <= 0) return; // Mati tidak bisa buka inventory
                 isInventoryOpen = !isInventoryOpen;
                 const invModal = document.getElementById('inventory-modal');
                 if (isInventoryOpen) {
@@ -671,27 +675,24 @@ isInventoryOpen = false;
                     controls.unlock(); // Munculkan kursor bebas
                 } else {
                     invModal.style.display = 'none';
-                    if (!isSpectating) controls.lock(); // Kunci lagi kursor ke game
+                    controls.lock(); // Kunci lagi kursor ke game
                 }
                 return;
             }
 
-            // PINDAH SLOT QUICKBAR DENGAN ANGKA 1 - 4
-            if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+            // KETIKA TIDAK DALAM MODE INVENTORY, PINDAH SLOT QUICKBAR DENGAN ANGKA 1 - 4
+            if (!isInventoryOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
                 let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
                 activeQuickSlot = slotIdx;
                 
-                // Update Tampilan UI Quickbar & Inventory Grid
+                // Update Tampilan UI Quickbar di Bawah Layar
                 document.querySelectorAll('.quick-slot').forEach((el, idx) => {
                     el.classList.toggle('active', idx === slotIdx);
-                });
-                document.querySelectorAll('.inv-slot').forEach((el, idx) => {
-                    el.classList.toggle('selected', idx === slotIdx);
                 });
                 return;
             }
 
-            if (isInventoryOpen) return; // Kalau inventory lagi kebuka, abaikan tombol gerak game
+            if (isInventoryOpen || myHp <= 0) return; // Kalau inventory lagi kebuka, abaikan tombol gerak game
 
             if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
             if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
