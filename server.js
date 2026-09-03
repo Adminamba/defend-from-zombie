@@ -255,7 +255,7 @@ io.on('connection', (socket) => {
 });
 
 // Ganti kode listen lama Anda dengan ini:
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5500;
 
 server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server berjalan di port ${PORT}`);
