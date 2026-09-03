@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Zombie Survival 3D Fixed</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); color: #00ff00; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 100; display: none; }
+        #ui { position: absolute; top: 15px; left: 15px; color: white; font-size: 20px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
+        #stamina-bar-container { width: 200px; height: 10px; background: rgba(0,0,0,0.6); border: 1px solid #fff; margin-top: 8px; }
+        #stamina-bar { width: 100%; height: 100%; background: #00ffff; }
+        #level-ui { position: absolute; top: 15px; right: 15px; color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; text-align: right;}
+        #flashlight-info { position: absolute; bottom: 20px; left: 20px; color: #ffd700; font-size: 18px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
+        
+        .overlay-screen { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 200; }
+        /* Background dim untuk overlay biasa */
+        #login-overlay, #lobby-room-menu { background: rgba(0,0,0,0.85); }
+        
+        /* LAYAR SPECTATOR: Posisi di bawah agar tak halangi pandangan */
+        #death-screen { background: transparent; align-items: flex-end; padding-bottom: 40px; pointer-events: none; }
+        #death-screen .menu-box { pointer-events: auto; background: rgba(20,20,20,0.8); padding: 15px 30px; width: 300px; border-width: 2px;}
+        #death-screen h1 { font-size: 22px; margin-bottom: 5px; }
+        
+        .menu-box { background: #1a1a1a; padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #FFD700; color: white; width: 400px; max-height: 80vh; overflow-y: auto; }
+        .menu-box input { width: 80%; padding: 10px; font-size: 16px; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc; text-align: center; background: #222; color: white; }
+        .menu-box button { background: #FFD700; color: black; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; margin-top: 5px; width: 100%;}
+        .menu-box button:hover { background: #fff; transform: scale(1.05); }
+        .room-item { background: #333; padding: 10px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #555;}
+        
+        #lobby-room-menu, #death-screen, #spectator-ui { display: none; }
+        #damage-overlay { position: absolute; width: 100%; height: 100%; background: rgba(255,0,0,0.5); z-index: 150; display: none; pointer-events: none; }
+        #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
+</head>
+<body>
+    <div id="damage-overlay"></div>
+    <div id="crosshair">⌖</div>
+    <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
+    <div id="level-ui">HARI KE- <span id="level">1</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
+    <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
+    
+    <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 16px; color: white;">(Klik Kiri untuk ganti target)</span></div>
+
+    <!-- Browser Room Publik Lobby -->
+    <div id="login-overlay" class="overlay-screen">
+        <div class="menu-box">
+            <h1 style="color: #FFD700; margin-top:0;">ZOMBIE MULTIPLAYER</h1>
+            <input type="text" id="username-input" placeholder="Nama Kamu" maxlength="12">
+            
+            <h3 style="margin-top: 20px;">Daftar Publik Room:</h3>
+            <div id="room-list" style="margin-bottom: 15px;">Mencari Room...</div>
+            
+            <hr style="border-color: #555;">
+            <p>Atau Buat Room Baru:</p>
+            <input type="text" id="room-name-input" placeholder="Nama Room Baru" maxlength="15">
+            <button id="btn-create-room">BUAT & MASUK ROOM</button>
+        </div>
+    </div>
+
+    <!-- Lobby Room -->
+    <div id="lobby-room-menu" class="overlay-screen">
+        <div class="menu-box" style="border-color: #00ff00;">
+            <h1 id="lobby-title" style="color: #00ff00; margin-top:0;">DALAM ROOM</h1>
+            <p>Player Terkoneksi: <span id="lobby-player-count">1</span>/5</p>
+            <button id="btn-start-game">🔥 MULAI SURVIVAL 🔥</button>
+            <button id="btn-resume" style="display:none; background:#ccc;">Lanjutkan (Tekan Q)</button>
+        </div>
+    </div>
+
+    <!-- Death Screen Spectator Bawah -->
+    <div id="death-screen" class="overlay-screen">
+        <div class="menu-box" style="border-color: #ff0000;">
+            <h1 style="color: #ff0000; margin-top:0;">KAMU TEWAS!</h1>
+            <p id="respawn-timer-text" style="margin-top:5px; margin-bottom: 10px;">Hidup kembali dalam: <span id="countdown">60</span>s</p>
+            <button id="btn-respawn" style="background:#555; cursor:not-allowed; padding:8px;" disabled>HIDUP KEMBALI</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        const socket = io();
+        let otherPlayers = {};
+        let zombies = {};
+        let debris = [];
+        let damageIndicators = [];
+        let myHp = 100;
+        let isPaused = true;
+        let isGameStarted = false;
+        
+        let maxStamina = 100; let currentStamina = 100;
+        let serverWalls = []; let wallMeshes = [];
+
+        let isSpectating = false;
+        let spectateTargets = [];
+        let spectateIndex = 0;
+
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playGunSound() {
+            if (!audioCtx) return;
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.12, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, audioCtx.currentTime); filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.12);
+            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.6, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
+        }
+
+        function createFaceTexture(bgColor, emoji) {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 128, 128);
+            ctx.font = '80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, 64, 68);
+            return new THREE.CanvasTexture(canvas);
+        }
+        const faceKroco = createFaceTexture('#2d5a27', '🧟');
+        const faceKuat = createFaceTexture('#8b0000', '👹');
+        const faceBoss = createFaceTexture('#111111', '💀');
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x11131e); 
+        scene.fog = new THREE.FogExp2(0x11131e, 0.006); // Disesuaikan untuk map yang makin luas
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.y = 5.5; 
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
+        const controls = new PointerLockControls(camera, document.body); scene.add(controls.getObject());
+
+        const gunGroup = new THREE.Group();
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 2), new THREE.MeshStandardMaterial({ color: 0x333333 })); barrel.position.set(0, 0, -1);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1, 0.4), new THREE.MeshStandardMaterial({ color: 0x111111 })); grip.position.set(0, -0.6, 0); grip.rotation.x = Math.PI / 8;
+        gunGroup.add(barrel); gunGroup.add(grip);
+        const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); muzzleFlash.position.set(0, 0, -2.2); gunGroup.add(muzzleFlash);
+        gunGroup.position.set(1.5, -1.5, -3); camera.add(gunGroup);
+
+        const flashlight = new THREE.SpotLight(0xffffff, 180, 300, Math.PI/4, 0.5, 1);
+        flashlight.position.set(0, 0, 1); flashlight.target.position.set(0, 0, -20);
+        camera.add(flashlight); camera.add(flashlight.target);
+
+        scene.add(new THREE.AmbientLight(0x667788, 1.2));
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
+        floor.rotation.x = -Math.PI / 2; scene.add(floor);
+
+        function buildWalls(wallsData) {
+            serverWalls = wallsData;
+            serverWalls.forEach(w => {
+                const group = new THREE.Group();
+                group.position.set(w.x, 0, w.z); 
+
+                const boxGeo = new THREE.BoxGeometry(w.width, w.height, w.depth); 
+                const boxMat = new THREE.MeshStandardMaterial({ color: w.color });
+                const baseBox = new THREE.Mesh(boxGeo, boxMat);
+                baseBox.position.set(0, w.height / 2, 0); 
+                group.add(baseBox);
+
+                // INTERIOR VISUAL & HIASAN 3D TAMBAHAN
+                if (w.name === "Rumah_Putih") {
+                    const roof = new THREE.Mesh(new THREE.ConeGeometry(20, 8, 4), new THREE.MeshStandardMaterial({ color: 0x990000 }));
+                    roof.position.set(0, w.height + 4, 0); roof.rotation.y = Math.PI / 4; group.add(roof);
+                    // Chest Inventory
+                    const chest = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshStandardMaterial({ color: 0x8B4513 }));
+                    chest.position.set(0, 1.5, 0); group.add(chest);
+                } else if (w.name === "Rumah_Hijau") {
+                    const canopy = new THREE.Mesh(new THREE.BoxGeometry(w.width + 2, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
+                    canopy.position.set(0, w.height - 1, w.depth/2 + 1.5); group.add(canopy);
+                    // Rak Senjata
+                    const weaponRack = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 1), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+                    weaponRack.position.set(0, 2.5, -4); group.add(weaponRack);
+                } else if (w.name === "Rumah_Biru") {
+                    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+                    ant.position.set(0, w.height + 2, 0); group.add(ant);
+                    // Pod / Kapsul Sewa Robot
+                    const pod = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 6, 16), new THREE.MeshStandardMaterial({ color: 0x4444ff, transparent: true, opacity: 0.6 }));
+                    pod.position.set(0, 3, 0); group.add(pod);
+                }
+
+                scene.add(group);
+                wallMeshes.push(baseBox); 
+            });
+        }
+
+        function createDamageText(text, x, y, z, color) {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'Bold 40px Arial'; ctx.fillStyle = color; ctx.textAlign = 'center'; 
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+            ctx.strokeText(text, 64, 40); ctx.fillText(text, 64, 40);
+            
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
+            sprite.position.set(x, y, z); sprite.scale.set(4, 2, 1);
+            scene.add(sprite);
+            damageIndicators.push({ mesh: sprite, time: 0 });
+        }
+        socket.on('spawnDamageIndicator', (data) => { createDamageText("-" + data.dmg, data.x, data.y, data.z, data.color); });
+
+        function fetchRooms() {
+            fetch('/rooms').then(r => r.json()).then(data => {
+                const list = document.getElementById('room-list'); list.innerHTML = '';
+                if(data.length === 0) list.innerHTML = '<p style="color:#aaa;">Belum ada room publik.</p>';
+                data.forEach(r => {
+                    let div = document.createElement('div'); div.className = 'room-item';
+                    div.innerHTML = `<span><b>${r.name}</b> (${r.players}/5)</span> <button onclick="joinRoom('${r.id}', '${r.name}')" style="width: auto; padding: 5px 10px; margin:0;">Gabung</button>`;
+                    list.appendChild(div);
+                });
+            });
+        }
+        setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
+        fetchRooms();
+
+        window.joinRoom = function(roomId, roomName) {
+            const name = document.getElementById('username-input').value.trim(); if(!name) return alert("Isi username!");
+            initAudio(); if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{});
+            socket.emit('joinRoom', { username: name, roomId: roomId, roomName: roomName });
+            document.getElementById('login-overlay').style.display = 'none'; document.getElementById('lobby-room-menu').style.display = 'flex';
+        };
+
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            let rName = document.getElementById('room-name-input').value.trim();
+            if(!rName) rName = "Room " + Math.floor(Math.random()*1000);
+            joinRoom('room_' + Date.now(), rName);
+        });
+
+        socket.on('roomError', (msg) => { alert(msg); location.reload(); });
+        document.getElementById('btn-start-game').addEventListener('click', () => socket.emit('startGame'));
+        document.getElementById('btn-resume').addEventListener('click', () => controls.lock());
+
+        let respawnInterval = null;
+        document.getElementById('btn-respawn').addEventListener('click', () => socket.emit('requestRespawn'));
+
+        socket.on('respawnApproved', (pData) => {
+            document.getElementById('death-screen').style.display = 'none';
+            document.getElementById('spectator-ui').style.display = 'none';
+            camera.position.set(pData.x, 5.5, pData.z);
+            camera.rotation.set(0, 0, 0); 
+            
+            // TAMBAHAN: Munculkan lagi pistol & senter (jika ON)
+            gunGroup.visible = true;
+            if (flashlightOn) flashlight.visible = true;
+
+            myHp = 100; isSpectating = false; updateUI(); controls.lock();
+        });
+
+        socket.on('gameOverReset', () => { alert("Tim tewas! Reset ulang."); location.reload(); });
+
+        controls.addEventListener('lock', () => {
+            isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none';
+            if (!isSpectating) { document.getElementById('crosshair').style.display = 'block'; document.getElementById('ui').style.display = 'block'; document.getElementById('flashlight-info').style.display = 'block'; }
+            document.getElementById('level-ui').style.display = 'block';
+        });
+
+        controls.addEventListener('unlock', () => {
+            if (document.getElementById('login-overlay').style.display === 'none' && myHp > 0) {
+                isPaused = true; document.getElementById('lobby-room-menu').style.display = 'flex'; document.getElementById('crosshair').style.display = 'none';
+                if(isGameStarted) { document.getElementById('lobby-title').innerText = "PAUSED"; document.getElementById('btn-start-game').style.display = 'none'; document.getElementById('btn-resume').style.display = 'block'; }
+            }
+        });
+
+        // PEMAIN: MATA & TANGAN LURUS MENGHADAP DEPAN
+        function createHumanoidModel(colorHex, username) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; group.add(body);
+            
+            // Kepala & Mata
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; 
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 0.2, -0.76); // Negatif Z adalah depan pemain (menghadap -Z)
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 0.2, -0.76);
+            head.add(eyeL); head.add(eyeR);
+            group.add(head);
+
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); armL.position.set(-1.4, 3, 0); group.add(armL);
+            
+            // Tangan Kanan Megang Pistol: Lurus ke Depan
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); 
+            armR.position.set(1.4, 3.5, -0.5); // Geser dikit ke depan dan atas biar pas di bahu
+            armR.rotation.x = -Math.PI / 2; // FIX: LURUS KE DEPAN (90 Derajat)
+            
+            const tGun = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 2), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            tGun.position.set(0, -1.2, 0); armR.add(tGun); // Sesuaikan pistol di ujung tangan
+            const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -2.2, 0); tGun.add(oFlash); // Flash di moncong
+            group.add(armR);
+
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); group.add(legL);
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legR.position.set(0.6, 0.5, 0); group.add(legR);
+
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
+            const ctx = canvas.getContext('2d'); const texture = new THREE.CanvasTexture(canvas);
+            const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
+            labelMesh.position.y = 7; labelMesh.userData = { isLabel: true }; group.add(labelMesh);
+
+            group.userData = { ctx, texture, labelMesh, hp: 100, username, armL, armR, legL, legR, walkTime: 0, oFlash };
+            updatePlayerLabel(group); return group;
+        }
+
+        function updatePlayerLabel(group) {
+            const { ctx, texture, hp, username } = group.userData;
+            ctx.clearRect(0, 0, 256, 64);
+            ctx.font = 'Bold 20px Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(username, 128, 24);
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(28, 36, 200, 16); ctx.fillStyle = '#00ff00'; ctx.fillRect(28, 36, Math.max(0, (hp / 100) * 200), 16);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true;
+        }
+
+        function createZombieModel(info) {
+            const group = new THREE.Group();
+            let s = info.type === 'boss' ? 2 : 1; 
+            let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
+            const faceTex = info.type === 'boss' ? faceBoss : (info.type === 'kuat' ? faceKuat : faceKroco);
+            const matBody = new THREE.MeshStandardMaterial({ color: color });
+            
+            // Material Muka Menghadap -Z
+            const matHead = [ new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({map: faceTex}) ];
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = -Math.PI/2; armL.userData = { part: 'body' }; group.add(armL);
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = -Math.PI/2; armR.userData = { part: 'body' }; group.add(armR);
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legL.position.set(-0.6*s, 0.5*s, 0); legL.userData = { part: 'legs' }; group.add(legL);
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legR.position.set(0.6*s, 0.5*s, 0); legR.userData = { part: 'legs' }; group.add(legR);
+
+            const hbCanvas = document.createElement('canvas'); hbCanvas.width = 128; hbCanvas.height = 16;
+            const hbCtx = hbCanvas.getContext('2d'); const hbTexture = new THREE.CanvasTexture(hbCanvas);
+            const hbMesh = new THREE.Mesh(new THREE.PlaneGeometry(3*s, 0.5*s), new THREE.MeshBasicMaterial({ map: hbTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
+            hbMesh.position.y = 7*s; hbMesh.userData = { isLabel: true }; group.add(hbMesh);
+
+            group.userData = { id: info.id, type: info.type, hp: info.hp, maxHp: info.maxHp, hbCtx, hbTexture, hbMesh };
+            updateZombieLabel(group); return group;
+        }
+
+        function updateZombieLabel(group) {
+            const { hbCtx, hbTexture, hp, maxHp } = group.userData;
+            hbCtx.clearRect(0, 0, 128, 16); hbCtx.fillStyle = '#ff0000'; hbCtx.fillRect(0, 0, 128, 16);
+            hbCtx.fillStyle = '#00ff00'; hbCtx.fillRect(0, 0, 128 * Math.max(0, hp / maxHp), 16);
+            hbCtx.strokeStyle = '#ffffff'; hbCtx.lineWidth = 3; hbCtx.strokeRect(0, 0, 128, 16); hbTexture.needsUpdate = true;
+        }
+
+        socket.on('initGameData', (data) => {
+            isGameStarted = (data.gameState === 'PLAYING'); document.getElementById('level').innerText = data.currentLevel;
+            if (wallMeshes.length === 0) buildWalls(data.walls);
+            Object.keys(data.players).forEach(id => { if(id !== socket.id) addOtherPlayer(data.players[id]); });
+            updateUI(); if(isGameStarted) spawnZombiesClient(data.zombies);
+        });
+
+        socket.on('newPlayer', (info) => { addOtherPlayer(info); updateUI(); });
+        socket.on('playerLeft', (id) => { if (otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; updateUI(); } });
+        
+        socket.on('playerMoved', (info) => {
+            if (otherPlayers[info.id] && otherPlayers[info.id].userData.hp > 0) {
+                otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
+                otherPlayers[info.id].rotation.y = info.rotationY; // Sync Rotasi (Tubuh ikuti hadapan kamera)
+            }
+        });
+
+        // EFEK LASER TEMBAKAN TEMAN (Ngikut rotasi)
+        socket.on('otherPlayerShot', (id) => {
+            if (otherPlayers[id]) {
+                const flash = otherPlayers[id].userData.oFlash;
+                flash.intensity = 5; setTimeout(() => flash.intensity = 0, 50);
+                
+                let startPos = new THREE.Vector3();
+                flash.getWorldPosition(startPos);
+                
+                // Laser Lurus ke depan sesuai arah temen
+                let forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), otherPlayers[id].rotation.y);
+                let endPos = startPos.clone().add(forward.multiplyScalar(60)); // Panjang laser 60
+                
+                const geo = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
+                const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
+                scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
+            }
+        });
+
+        socket.on('gameStarted', (level) => { isGameStarted = true; document.getElementById('level').innerText = level; controls.lock(); });
+        socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
+        
+        socket.on('updateZombiesPosition', (zombieData) => {
+            for(let zid in zombieData) {
+                if(zombies[zid]) {
+                    zombies[zid].position.set(zombieData[zid].x, 0, zombieData[zid].z);
+                    zombies[zid].lookAt(camera.position.x, 0, camera.position.z);
+                    zombies[zid].userData.hbMesh.lookAt(camera.position);
+                }
+            }
+        });
+
+        function shatterModel(modelGroup) {
+            modelGroup.children.forEach(child => {
+                if (child.type === "Mesh" && !child.userData.isLabel) {
+                    let clone = child.clone(); let worldPos = new THREE.Vector3(); child.getWorldPosition(worldPos);
+                    clone.position.copy(worldPos); scene.add(clone);
+                    debris.push({ mesh: clone, vx: (Math.random() - 0.5) * 15, vy: Math.random() * 15 + 5, vz: (Math.random() - 0.5) * 15, rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5 });
+                }
+            });
+            modelGroup.visible = false;
+        }
+
+        socket.on('zombieDied', (zid) => { if(zombies[zid]) { shatterModel(zombies[zid]); delete zombies[zid]; document.getElementById('zombie-count').innerText = Object.keys(zombies).length; } });
+        
+        socket.on('zombieHit', (data) => {
+            if(zombies[data.id]) {
+                zombies[data.id].userData.hp = data.hp; updateZombieLabel(zombies[data.id]);
+                zombies[data.id].children.forEach(c => { if(c.material && c.material.color) c.material.color.setHex(0xffffff); });
+                setTimeout(() => { if(zombies[data.id]) { let color = zombies[data.id].userData.type === 'boss' ? 0x111111 : (zombies[data.id].userData.type === 'kuat' ? 0x8b0000 : 0x2d5a27); zombies[data.id].children.forEach(c => { if(c.material && c.material.color) c.material.color.setHex(color); }); } }, 100);
+            }
+        });
+
+        socket.on('levelUp', (level) => { document.getElementById('level').innerText = level; myHp = Math.min(100, myHp + 30); updateUI(); });
+
+        socket.on('playerHpUpdate', (data) => {
+            if (data.id === socket.id && myHp > 0) {
+                myHp = data.hp; updateUI();
+                const overlay = document.getElementById('damage-overlay'); overlay.style.display = 'block'; setTimeout(() => overlay.style.display = 'none', 300);
+                
+                if (myHp <= 0) {
+                    isSpectating = true;
+                    
+                    // TAMBAHAN: Sembunyikan pistol & senter saat jadi arwah
+                    gunGroup.visible = false;
+                    flashlight.visible = false;
+
+                    document.getElementById('crosshair').style.display = 'none'; document.getElementById('ui').style.display = 'none'; document.getElementById('flashlight-info').style.display = 'none';
+                    document.getElementById('death-screen').style.display = 'flex'; 
+                    document.getElementById('spectator-ui').style.display = 'block';
+
+                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+                    spectateIndex = 0;
+
+                    let timeLeft = 60; document.getElementById('countdown').innerText = timeLeft;
+                    const btnRespawn = document.getElementById('btn-respawn');
+                    btnRespawn.disabled = true; btnRespawn.style.background = '#555'; btnRespawn.style.cursor = 'not-allowed';
+
+                    if (respawnInterval) clearInterval(respawnInterval);
+                    respawnInterval = setInterval(() => {
+                        timeLeft--; document.getElementById('countdown').innerText = timeLeft;
+                        if (timeLeft <= 0) {
+                            clearInterval(respawnInterval); btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer'; document.getElementById('respawn-timer-text').innerText = "Sudah bisa respawn!";
+                        }
+                    }, 1000);
+                }
+            } else if (otherPlayers[data.id]) {
+                otherPlayers[data.id].userData.hp = data.hp; updatePlayerLabel(otherPlayers[data.id]);
+                if (data.hp > 0 && !otherPlayers[data.id].visible) { otherPlayers[data.id].visible = true; }
+                
+                if (data.hp <= 0 && otherPlayers[data.id].visible) {
+                    shatterModel(otherPlayers[data.id]);
+                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+                }
+            }
+        });
+
+        function addOtherPlayer(info) {
+            const model = createHumanoidModel(info.color, info.username);
+            model.position.set(info.x, info.y - 5.5, info.z); scene.add(model); otherPlayers[info.id] = model;
+        }
+
+        function spawnZombiesClient(zData) {
+            for(let zid in zombies) scene.remove(zombies[zid]); zombies = {};
+            for(let zid in zData) { let z = createZombieModel(zData[zid]); z.position.set(zData[zid].x, 0, zData[zid].z); scene.add(z); zombies[zid] = z; }
+            document.getElementById('zombie-count').innerText = Object.keys(zombies).length;
+        }
+
+        function updateUI() {
+            let totalPlayers = Object.keys(otherPlayers).length + 1;
+            document.getElementById('player-count').innerText = totalPlayers;
+            document.getElementById('lobby-player-count').innerText = totalPlayers;
+            document.getElementById('hp').innerText = myHp;
+            document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%';
+        }
+
+        const raycaster = new THREE.Raycaster(); let lasers = [];
+
+        window.addEventListener('mousedown', (e) => {
+            if (controls.isLocked) {
+                if (isSpectating) {
+                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+                    if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
+                    return;
+                }
+
+                if (myHp > 0 && e.button === 0) {
+                    playGunSound();
+                    socket.emit('playerShootVisual'); // Kirim signal tembak
+                    muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+
+                    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                    let collidableMeshes = [...wallMeshes];
+                    Object.values(zombies).forEach(z => z.children.forEach(c => { if(!c.userData.isLabel) collidableMeshes.push(c); }));
+                    
+                    let intersects = raycaster.intersectObjects(collidableMeshes);
+                    let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
+                    let targetPoint = new THREE.Vector3();
+
+                    if (intersects.length > 0) {
+                        targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
+                        if (hitMesh.parent && hitMesh.parent.userData.id) {
+                            socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body' });
+                        }
+                    } else { raycaster.ray.at(300, targetPoint); }
+
+                    const geo = new THREE.BufferGeometry().setFromPoints([gunTip, targetPoint]);
+                    const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
+                    scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
+
+                    gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
+                }
+            }
+        });
+
+        // TAMBAHAN: Variabel & Event untuk rotasi kamera spectator pakai mouse
+        let specAngleX = 0;
+        let specAngleY = 0;
+        window.addEventListener('mousemove', (e) => {
+            if (isSpectating) {
+                // Konversi posisi mouse ke rotasi (-1 sampai 1)
+                let mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                let mouseY = (e.clientY / window.innerHeight) * 2 - 1;
+                specAngleX = -mouseX * Math.PI; // Geser kiri/kanan
+                specAngleY = mouseY * (Math.PI / 4); // Geser atas/bawah
+            }
+        });
+
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
+
+        document.addEventListener('keydown', (e) => {
+            if (isPaused || myHp <= 0) return;
+            if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
+            if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
+            if (e.code === 'ShiftLeft') isSprinting = true;
+            if (e.code === 'KeyF') { 
+                flashlightOn = !flashlightOn; flashlight.visible = flashlightOn; 
+                const flStatus = document.getElementById('fl-status'); if (flStatus) { flStatus.innerText = flashlightOn ? 'ON' : 'OFF'; flStatus.style.color = flashlightOn ? '#00ff00' : '#ff4c4c'; }
+            }
+            if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
+            if (e.code === 'Space' && canJump && currentStamina >= 15) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
+            if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
+            if (e.code === 'ShiftLeft') isSprinting = false;
+        });
+
+        let prevTime = performance.now();
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now(); const delta = (time - prevTime) / 1000;
+
+            for (let i = damageIndicators.length - 1; i >= 0; i--) {
+                let d = damageIndicators[i]; d.mesh.position.y += 4 * delta; d.time += delta;
+                if (d.time > 1) { scene.remove(d.mesh); damageIndicators.splice(i, 1); }
+            }
+
+            for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
+            for (let i = debris.length - 1; i >= 0; i--) {
+                let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
+                d.mesh.rotation.x += d.rx * delta; d.mesh.rotation.y += d.ry * delta; d.mesh.rotation.z += d.rz * delta;
+                if (d.mesh.position.y < 0) { scene.remove(d.mesh); debris.splice(i, 1); }
+            }
+
+            if (isSpectating) {
+                if (spectateTargets.length > 0 && otherPlayers[spectateTargets[spectateIndex]]) {
+                    let target = otherPlayers[spectateTargets[spectateIndex]];
+                    
+                    // KAMERA DIUPGRADE: Tinggi 8, Jarak 18 (Biar luas dan kelihatan nembak siapa)
+                    let distance = 18;
+                    let heightOffset = 8;
+                    
+                    // Posisi kamera dikontrol oleh hadapan teman + gerakan mouse lu (Free Look)
+                    let yaw = target.rotation.y + specAngleX;
+                    let offsetX = Math.sin(yaw) * distance;
+                    let offsetZ = Math.cos(yaw) * distance;
+                    let offsetY = heightOffset + (specAngleY * 10); // Mouse atas/bawah
+                    
+                    camera.position.set(target.position.x + offsetX, target.position.y + offsetY, target.position.z + offsetZ);
+                    camera.lookAt(target.position.x, target.position.y + 3, target.position.z); // Fokus ke badan temen
+                    
+                    document.getElementById('spec-name').innerText = target.userData.username;
+                } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
+            }
+            else if (controls.isLocked && myHp > 0) {
+                let oldX = camera.position.x; let oldZ = camera.position.z;
+
+                velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 100.0 * delta; 
+                direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft); direction.normalize();
+
+                let speed = 400.0; let isMoving = moveForward || moveBackward || moveLeft || moveRight;
+                if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
+                updateUI();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta; if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+                controls.moveRight(-velocity.x * delta); controls.moveForward(-velocity.z * delta);
+                
+                let newX = camera.position.x; let newZ = camera.position.z; let collideX = false; let collideZ = false; let playerRadius = 1.5;
+                for (let w of serverWalls) {
+                    let hwX = w.width / 2; let hwZ = w.depth / 2;
+                    if (newX + playerRadius > w.x - hwX && newX - playerRadius < w.x + hwX && oldZ + playerRadius > w.z - hwZ && oldZ - playerRadius < w.z + hwZ) collideX = true;
+                    if (oldX + playerRadius > w.x - hwX && oldX - playerRadius < w.x + hwX && newZ + playerRadius > w.z - hwZ && newZ - playerRadius < w.z + hwZ) collideZ = true;
+                }
+                if (collideX) camera.position.x = oldX; if (collideZ) camera.position.z = oldZ;
+
+                camera.position.y += (velocity.y * delta);
+                if (camera.position.y < 5.5) { velocity.y = 0; camera.position.y = 5.5; canJump = true; }
+
+                socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: camera.rotation.y });
+            }
+
+            Object.values(otherPlayers).forEach(p => { 
+                if(p.visible) {
+                    p.userData.labelMesh.lookAt(camera.position); 
+                    if (!p.userData.lastPos) p.userData.lastPos = p.position.clone();
+                    let distMoved = p.position.distanceTo(p.userData.lastPos);
+                    
+                    if (distMoved > 0.02) {
+                        p.userData.walkTime = (p.userData.walkTime || 0) + 15 * delta;
+                        let swing = Math.sin(p.userData.walkTime) * 0.8;
+                        // Badan gerak lari tapi pistol tetep stabil ngarah ke depan
+                        p.userData.armL.rotation.x = swing; 
+                        p.userData.legL.rotation.x = -swing; p.userData.legR.rotation.x = swing;
+                    } else {
+                        p.userData.armL.rotation.x = 0; 
+                        p.userData.legL.rotation.x = 0; p.userData.legR.rotation.x = 0;
+                    }
+                    p.userData.lastPos.copy(p.position);
+                }
+            });
+            
+            prevTime = time; renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+</body>
+</html>
