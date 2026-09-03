@@ -256,9 +256,10 @@ io.on('connection', (socket) => {
 
                 if (z.hp <= 0) {
                 
-                   // [FITUR BARU] Sistem Koin Acak (DIKURANGI BIAR HARDCORE & BUTUH SKILL)
-                    // Bos: 50 - 150 koin. Zombie biasa: 2 - 15 koin.
-                    let coins = z.type === 'boss' ? Math.floor(Math.random() * 101) + 50 : Math.floor(Math.random() * 14) + 2;
+                 // [FITUR BARU] Sistem Koin Acak Berskala Multi-Player (1 sampai 5 Player)
+                    let activePlayersCount = Object.keys(room.players).length || 1;
+                    let baseCoins = z.type === 'boss' ? Math.floor(Math.random() * 101) + 50 : Math.floor(Math.random() * 14) + 2;
+                    let coins = baseCoins * activePlayersCount; // Makin banyak player, total koin yang didapat menyesuaikan biar pas!
                     socket.emit('coinReward', coins);
 
                     delete room.zombies[data.id]; io.to(socket.roomId).emit('zombieDied', data.id);
