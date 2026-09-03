@@ -12,32 +12,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 const rooms = {};
 const MAX_PLAYERS_PER_ROOM = 5;
 
-// === MAP & STRUKTUR BASE CAMP (DIPERLUAS SUPER LUAS 200x200) ===
+// === STRUKTUR BASE RAPI (TANPA TEMBOK TEMBUS & ADA API UNGGUN DI TENGAH) ===
 function generateBaseWalls() {
     const walls = [];
     function add(x, z, w, d, h, color, name) {
         walls.push({ x, z, width: w, depth: d, height: h, color, name });
     }
 
-    // Pagar Keliling (-100 sampai 100)
-    // Celah pintu diperlebar (jadi 30 unit) dan sekarang TERBUKA DI KEEMPAT SISI
-    
-    // Pagar Utara & Selatan (Celah di tengah)
+    // Pagar Keliling Base (Luas 200x200, Pintu di 4 Sisi)
     add(-57.5, -100, 85, 2, 6, 0x8B4513, "Pagar_Utara_Kiri");
     add(57.5, -100, 85, 2, 6, 0x8B4513, "Pagar_Utara_Kanan");
     add(-57.5, 100, 85, 2, 6, 0x8B4513, "Pagar_Selatan_Kiri");
     add(57.5, 100, 85, 2, 6, 0x8B4513, "Pagar_Selatan_Kanan");
     
-    // Pagar Barat & Timur (Sekarang terbuka di tengah juga)
     add(-100, -57.5, 2, 85, 6, 0x8B4513, "Pagar_Barat_Atas");
     add(-100, 57.5, 2, 85, 6, 0x8B4513, "Pagar_Barat_Bawah");
     add(100, -57.5, 2, 85, 6, 0x8B4513, "Pagar_Timur_Atas");
     add(100, 57.5, 2, 85, 6, 0x8B4513, "Pagar_Timur_Bawah");
 
-    // Bangunan Utama
-    add(0, -30, 24, 24, 10, 0xffffff, "Rumah_Putih"); // Inventory
-    add(40, 20, 20, 20, 8, 0x22aa22, "Rumah_Hijau");  // Toko Senjata
-    add(-40, 20, 20, 20, 8, 0x2222aa, "Rumah_Biru");  // Toko Perangkap
+    // Rumah-rumah di sekitar base (Solid & Terstruktur rapi)
+    add(0, -50, 24, 20, 10, 0xffffff, "Rumah_Putih"); // Inventory
+    add(55, 30, 20, 20, 8, 0x22aa22, "Rumah_Hijau");   // Toko Senjata
+    add(-55, 30, 20, 20, 8, 0x2222aa, "Rumah_Biru");   // Toko Sewa
 
     return walls;
 }
@@ -50,7 +46,6 @@ function spawnZombies(room) {
         let type = Math.random() < 0.3 ? 'kuat' : 'kroco';
         let hpBase = type === 'kuat' ? 6 : 3;
         
-        // Spawn Zombie lebih jauh karena pagar sekarang besar (Radius 160 - 200)
         let angle = Math.random() * Math.PI * 2;
         let radius = 160 + Math.random() * 40; 
 
@@ -69,7 +64,7 @@ function spawnZombies(room) {
         let bossId = 'zombie_boss_' + Date.now();
         room.zombies[bossId] = {
             id: bossId, type: 'boss',
-            x: 0, z: -220, // Bos spawn sangat jauh
+            x: 0, z: -220,
             hp: 25 * room.level, maxHp: 25 * room.level, 
             speed: 9 + (room.level * 0.2), lastAttack: 0
         };
@@ -77,7 +72,7 @@ function spawnZombies(room) {
     io.to(room.id).emit('syncZombies', room.zombies);
 }
 
-// Loop Otak Server Zombie
+// Loop Utama AI Zombie & Target (Player atau Api Unggun)
 setInterval(() => {
     let now = Date.now();
     for (let roomId in rooms) {
@@ -89,7 +84,9 @@ setInterval(() => {
 
         let allDead = true;
         playerIds.forEach(pid => { if (room.players[pid].hp > 0) allDead = false; });
-        if (allDead) {
+        
+        // Jika semua player mati ATAU api unggun hancur (HP <= 0), Game Over
+        if (allDead || room.campfireHp <= 0) {
             room.gameState = 'LOBBY';
             room.zombies = {};
             io.to(roomId).emit('gameOverReset');
@@ -99,18 +96,31 @@ setInterval(() => {
         let zombiesMoved = false;
         for (let zid in room.zombies) {
             let z = room.zombies[zid];
-            let nearest = null; let minDist = Infinity;
+            let target = null;
+            let targetType = 'player';
+            let minDist = Infinity;
 
+            // 1. Cari Player terdekat dulu
             playerIds.forEach(pid => {
                 let p = room.players[pid];
                 if (p.hp > 0) {
                     let dist = Math.hypot(p.x - z.x, p.z - z.z);
-                    if (dist < minDist) { minDist = dist; nearest = p; }
+                    if (dist < minDist) { minDist = dist; target = p; }
                 }
             });
 
-            if (nearest && minDist > (z.type === 'boss' ? 4 : 2.5)) {
-                let dx = nearest.x - z.x; let dz = nearest.z - z.z;
+            // 2. Jika Player terdekat jaraknya > 25 unit, zombie beralih menyerang Api Unggun di (0,0)
+            let distToCampfire = Math.hypot(0 - z.x, 0 - z.z);
+            if (minDist > 25 && distToCampfire < minDist) {
+                target = { x: 0, z: 0 };
+                targetType = 'campfire';
+                minDist = distToCampfire;
+            }
+
+            let attackRange = targetType === 'campfire' ? 4 : (z.type === 'boss' ? 4 : 2.5);
+
+            if (target && minDist > attackRange) {
+                let dx = target.x - z.x; let dz = target.z - z.z;
                 let len = Math.hypot(dx, dz);
                 let moveX = (dx / len) * z.speed * 0.1;
                 let moveZ = (dz / len) * z.speed * 0.1;
@@ -125,31 +135,29 @@ setInterval(() => {
                     if (z.x + zRadius > w.x - hwX && z.x - zRadius < w.x + hwX && newZ + zRadius > w.z - hwZ && newZ - zRadius < w.z + hwZ) collideZ = true;
                 }
 
-                // PATHFINDING: Kalau nabrak tembok, zombie menggeser cari jalan
-                if (!collideX) {
-                    z.x = newX;
-                } else {
-                    z.z += (dz > 0 ? 1 : -1) * z.speed * 0.05; // Sliding halus di sumbu Z
-                }
-
-                if (!collideZ) {
-                    z.z = newZ;
-                } else {
-                    z.x += (dx > 0 ? 1 : -1) * z.speed * 0.05; // Sliding halus di sumbu X
-                }
+                if (!collideX) z.x = newX; else z.z += (dz > 0 ? 1 : -1) * z.speed * 0.05;
+                if (!collideZ) z.z = newZ; else z.x += (dx > 0 ? 1 : -1) * z.speed * 0.05;
                 
                 zombiesMoved = true;
             }
 
-            // Serangan Zombie (Cooldown 1.5 Detik)
-            if (nearest && minDist <= (z.type === 'boss' ? 4.5 : 3)) {
+            // Serangan Zombie ke Player atau Campfire
+            if (target && minDist <= attackRange) {
                 if (now - z.lastAttack > 1500) {
                     z.lastAttack = now;
                     let baseDmg = z.type === 'boss' ? 6 : (z.type === 'kuat' ? 3 : 1);
                     let dmg = baseDmg + Math.floor(room.level * 0.5);
-                    nearest.hp -= dmg;
-                    io.to(roomId).emit('playerHpUpdate', { id: nearest.id, hp: nearest.hp });
-                    io.to(roomId).emit('spawnDamageIndicator', { x: nearest.x, y: nearest.y + 2, z: nearest.z, dmg: dmg, color: '#ff0000' });
+
+                    if (targetType === 'player') {
+                        target.hp -= dmg;
+                        io.to(roomId).emit('playerHpUpdate', { id: target.id, hp: target.hp });
+                        io.to(roomId).emit('spawnDamageIndicator', { x: target.x, y: target.y + 2, z: target.z, dmg: dmg, color: '#ff0000' });
+                    } else {
+                        // Serang Api Unggun (Campfire)
+                        room.campfireHp -= dmg;
+                        io.to(roomId).emit('campfireHpUpdate', { hp: room.campfireHp });
+                        io.to(roomId).emit('spawnDamageIndicator', { x: 0, y: 3, z: 0, dmg: dmg, color: '#ff7700' });
+                    }
                 }
             }
         }
@@ -165,7 +173,11 @@ app.get('/rooms', (req, res) => {
 io.on('connection', (socket) => {
     socket.on('joinRoom', ({ username, roomId, roomName }) => {
         if (!rooms[roomId]) {
-            rooms[roomId] = { id: roomId, name: roomName, players: {}, zombies: {}, level: 1, gameState: 'LOBBY', walls: generateBaseWalls() };
+            rooms[roomId] = { 
+                id: roomId, name: roomName, players: {}, zombies: {}, 
+                level: 1, gameState: 'LOBBY', walls: generateBaseWalls(),
+                campfireHp: 200, maxCampfireHp: 200 // Api Unggun 200% HP
+            };
         }
         let room = rooms[roomId];
         if (Object.keys(room.players).length >= MAX_PLAYERS_PER_ROOM) {
@@ -181,7 +193,11 @@ io.on('connection', (socket) => {
             rotationY: 0, hp: 100, color: Math.floor(Math.random()*16777215)
         };
         
-        socket.emit('initGameData', { players: room.players, gameState: room.gameState, currentLevel: room.level, zombies: room.zombies, walls: room.walls });
+        socket.emit('initGameData', { 
+            players: room.players, gameState: room.gameState, 
+            currentLevel: room.level, zombies: room.zombies, 
+            walls: room.walls, campfireHp: room.campfireHp, maxCampfireHp: room.maxCampfireHp 
+        });
         socket.broadcast.to(roomId).emit('newPlayer', room.players[socket.id]);
         io.emit('roomListUpdated');
     });
@@ -202,7 +218,8 @@ io.on('connection', (socket) => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
             if (room.gameState === 'LOBBY') {
-                room.gameState = 'PLAYING'; room.level = 1; spawnZombies(room);
+                room.gameState = 'PLAYING'; room.level = 1; room.campfireHp = 200; 
+                spawnZombies(room);
                 Object.values(room.players).forEach(p => { p.hp = 100; io.to(socket.roomId).emit('playerHpUpdate', { id: p.id, hp: p.hp }); });
                 io.to(socket.roomId).emit('gameStarted', room.level);
             }
@@ -236,7 +253,18 @@ io.on('connection', (socket) => {
                 if (z.hp <= 0) {
                     delete room.zombies[data.id]; io.to(socket.roomId).emit('zombieDied', data.id);
                     if (Object.keys(room.zombies).length === 0) {
-                        room.level++; setTimeout(() => { spawnZombies(room); io.to(socket.roomId).emit('levelUp', room.level); }, 3000);
+                        room.level++; 
+                        if (room.level > 99) room.level = 99; // Max 99 Hari
+
+                        // JEDAH 2 MENIT (120 Detik) SEBELUM HARI BERIKUTNYA DIMULAI
+                        io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 120 });
+                        
+                        setTimeout(() => {
+                            if (room.gameState === 'PLAYING') {
+                                spawnZombies(room); 
+                                io.to(socket.roomId).emit('levelUp', room.level);
+                            }
+                        }, 120000); // 120 Detik
                     }
                 } else { io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp }); }
             }
@@ -253,12 +281,5 @@ io.on('connection', (socket) => {
     });
 });
 
-// PENGATURAN PORT DINAMIS UNTUK RAILWAY & LOCALHOST
-// =========================================================
-// =========================================================
-// PENGATURAN PORT DINAMIS UNTUK RAILWAY & LOCALHOST
-// =========================================================
 const PORT = process.env.PORT || 8080;
-http.listen(PORT, '0.0.0.0', () => { 
-    console.log(`Server jalan di port ${PORT}`); 
-});
+http.listen(PORT, '0.0.0.0', () => { console.log(`Server jalan di port ${PORT}`); });
