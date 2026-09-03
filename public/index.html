@@ -234,19 +234,25 @@
         document.getElementById('btn-resume').addEventListener('click', () => controls.lock());
 
         let respawnInterval = null;
-        document.getElementById('btn-respawn').addEventListener('click', () => socket.emit('requestRespawn'));
-
+        document.getElementById('btn-respawn').addEventListener('click', () => {
+            socket.emit('requestRespawn');
+            controls.lock(); // KUNCI KURSOR LANGSUNG DI SINI BIAR BROWSER GAK NGEBLOCK!
+        });
         socket.on('respawnApproved', (pData) => {
             document.getElementById('death-screen').style.display = 'none';
             document.getElementById('spectator-ui').style.display = 'none';
+            
             camera.position.set(pData.x, 5.5, pData.z);
             camera.rotation.set(0, 0, 0); 
             
-            // TAMBAHAN: Munculkan lagi pistol & senter (jika ON)
             gunGroup.visible = true;
-            if (flashlightOn) flashlight.visible = true;
+            if (typeof flashlightOn !== 'undefined' && flashlightOn) flashlight.visible = true;
 
-            myHp = 100; isSpectating = false; updateUI(); controls.lock();
+            myHp = 100; 
+            isSpectating = false; 
+            specAngleX = 0; // Reset rotasi kamera
+            specAngleY = 0;
+            updateUI(); 
         });
 
         socket.on('gameOverReset', () => { alert("Tim tewas! Reset ulang."); location.reload(); });
@@ -420,14 +426,16 @@
                 myHp = data.hp; updateUI();
                 const overlay = document.getElementById('damage-overlay'); overlay.style.display = 'block'; setTimeout(() => overlay.style.display = 'none', 300);
                 
-                if (myHp <= 0) {
+                if (myHp <= 0 && !isSpectating) {
                     isSpectating = true;
+                    controls.unlock(); // LEPAS KURSOR BIAR BISA KLIK TOMBOL / DRAG MOUSE
                     
-                    // TAMBAHAN: Sembunyikan pistol & senter saat jadi arwah
                     gunGroup.visible = false;
                     flashlight.visible = false;
 
-                    document.getElementById('crosshair').style.display = 'none'; document.getElementById('ui').style.display = 'none'; document.getElementById('flashlight-info').style.display = 'none';
+                    document.getElementById('crosshair').style.display = 'none'; 
+                    document.getElementById('ui').style.display = 'none'; 
+                    document.getElementById('flashlight-info').style.display = 'none';
                     document.getElementById('death-screen').style.display = 'flex'; 
                     document.getElementById('spectator-ui').style.display = 'block';
 
@@ -478,53 +486,55 @@
 
         const raycaster = new THREE.Raycaster(); let lasers = [];
 
-        window.addEventListener('mousedown', (e) => {
-            if (controls.isLocked) {
-                if (isSpectating) {
-                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-                    if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
-                    return;
-                }
+        // MATIKAN MENU KLIK KANAN BAWAAN BROWSER
+        window.addEventListener('contextmenu', e => e.preventDefault());
 
-                if (myHp > 0 && e.button === 0) {
-                    playGunSound();
-                    socket.emit('playerShootVisual'); // Kirim signal tembak
-                    muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-
-                    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                    let collidableMeshes = [...wallMeshes];
-                    Object.values(zombies).forEach(z => z.children.forEach(c => { if(!c.userData.isLabel) collidableMeshes.push(c); }));
-                    
-                    let intersects = raycaster.intersectObjects(collidableMeshes);
-                    let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
-                    let targetPoint = new THREE.Vector3();
-
-                    if (intersects.length > 0) {
-                        targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
-                        if (hitMesh.parent && hitMesh.parent.userData.id) {
-                            socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body' });
-                        }
-                    } else { raycaster.ray.at(300, targetPoint); }
-
-                    const geo = new THREE.BufferGeometry().setFromPoints([gunTip, targetPoint]);
-                    const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
-                    scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
-
-                    gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
-                }
-            }
-        });
-
-        // TAMBAHAN: Variabel & Event untuk rotasi kamera spectator pakai mouse
+        // LOGIKA DRAG KAMERA SPECTATOR (TAHAN KLIK KANAN)
         let specAngleX = 0;
         let specAngleY = 0;
         window.addEventListener('mousemove', (e) => {
-            if (isSpectating) {
-                // Konversi posisi mouse ke rotasi (-1 sampai 1)
-                let mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-                let mouseY = (e.clientY / window.innerHeight) * 2 - 1;
-                specAngleX = -mouseX * Math.PI; // Geser kiri/kanan
-                specAngleY = mouseY * (Math.PI / 4); // Geser atas/bawah
+            if (isSpectating && e.buttons === 2) { // 2 = Tahan Klik Kanan
+                specAngleX -= e.movementX * 0.005;
+                specAngleY -= e.movementY * 0.005;
+                // Batasi kamera biar gak jungkir balik
+                specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
+            }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            // [FITUR BARU] Klik Kiri (0) untuk ganti target walau kursor lagi dilepas!
+            if (isSpectating && e.button === 0) { 
+                spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+                if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
+                return;
+            }
+
+            // [LOGIKA NEMBAK ASLI]
+            if (controls.isLocked && myHp > 0 && e.button === 0) {
+                playGunSound();
+                socket.emit('playerShootVisual');
+                muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                let collidableMeshes = [...wallMeshes];
+                Object.values(zombies).forEach(z => z.children.forEach(c => { if(!c.userData.isLabel) collidableMeshes.push(c); }));
+                
+                let intersects = raycaster.intersectObjects(collidableMeshes);
+                let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
+                let targetPoint = new THREE.Vector3();
+
+                if (intersects.length > 0) {
+                    targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
+                    if (hitMesh.parent && hitMesh.parent.userData.id) {
+                        socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body' });
+                    }
+                } else { raycaster.ray.at(300, targetPoint); }
+
+                const geo = new THREE.BufferGeometry().setFromPoints([gunTip, targetPoint]);
+                const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
+                scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
+
+                gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
             }
         });
 
@@ -570,18 +580,18 @@
                 if (spectateTargets.length > 0 && otherPlayers[spectateTargets[spectateIndex]]) {
                     let target = otherPlayers[spectateTargets[spectateIndex]];
                     
-                    // KAMERA DIUPGRADE: Tinggi 8, Jarak 18 (Biar luas dan kelihatan nembak siapa)
                     let distance = 18;
                     let heightOffset = 8;
                     
-                    // Posisi kamera dikontrol oleh hadapan teman + gerakan mouse lu (Free Look)
+                    // Rotasi muter-muter dipengaruhi hasil drag klik kanan
                     let yaw = target.rotation.y + specAngleX;
                     let offsetX = Math.sin(yaw) * distance;
                     let offsetZ = Math.cos(yaw) * distance;
-                    let offsetY = heightOffset + (specAngleY * 10); // Mouse atas/bawah
                     
-                    camera.position.set(target.position.x + offsetX, target.position.y + offsetY, target.position.z + offsetZ);
-                    camera.lookAt(target.position.x, target.position.y + 3, target.position.z); // Fokus ke badan temen
+                    camera.position.set(target.position.x + offsetX, target.position.y + heightOffset, target.position.z + offsetZ);
+                    
+                    // Kamera mendongak/menunduk sesuai drag mouse Y
+                    camera.lookAt(target.position.x, target.position.y + 3 - (specAngleY * 15), target.position.z);
                     
                     document.getElementById('spec-name').innerText = target.userData.username;
                 } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
