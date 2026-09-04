@@ -763,10 +763,15 @@ isInventoryOpen = false;
                 let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
                 let targetPoint = new THREE.Vector3();
 
-                if (intersects.length > 0) {
+              if (intersects.length > 0) {
                     targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
                     if (hitMesh.parent && hitMesh.parent.userData.id) {
-                        socket.emit('shootZombie', { id: hitMesh.parent.userData.id, part: hitMesh.userData.part || 'body', damage: finalDmg });
+                        // [FIX] Pastikan struktur pengiriman data damage senjata valid
+                        socket.emit('shootZombie', { 
+                            id: hitMesh.parent.userData.id, 
+                            part: hitMesh.userData.part || 'body', 
+                            damage: finalDmg 
+                        });
                     }
                 } else { raycaster.ray.at(300, targetPoint); }
 
