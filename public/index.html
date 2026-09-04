@@ -679,21 +679,27 @@ isInventoryOpen = false;
             if (isShopOpen) renderShop(); 
         });
 
-        window.buyWeapon = function(key) {
+     window.buyWeapon = function(key) {
             let w = WEAPONS[key];
             if (myCoins >= w.price) {
-                myCoins -= w.price; ownedWeapons[key] = 1; document.getElementById('my-coins').innerText = myCoins;
+                // Koin bersama berkurang untuk dibelikan senjata bersama
+                myCoins -= w.price; 
+                ownedWeapons[key] = 1; 
+                document.getElementById('my-coins').innerText = myCoins;
                 renderShop(); if (isInventoryOpen) renderInventory();
-            } else alert("Koin tidak cukup!");
+            } else alert("Koin bersama tim tidak cukup!");
         };
 
         window.upgradeWeapon = function(key, cost) {
             if (myCoins >= cost) {
-                myCoins -= cost; ownedWeapons[key]++; document.getElementById('my-coins').innerText = myCoins;
+                // Koin bersama berkurang untuk upgrade senjata tim
+                myCoins -= cost; 
+                ownedWeapons[key]++; 
+                document.getElementById('my-coins').innerText = myCoins;
                 renderShop();
-            } else alert("Koin tidak cukup!");
+            } else alert("Koin bersama tim tidak cukup!");
         };
-
+        
         function renderShop() {
             const container = document.getElementById('shop-items-container'); container.innerHTML = '';
             Object.keys(WEAPONS).forEach(key => {
