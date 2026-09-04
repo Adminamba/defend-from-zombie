@@ -240,13 +240,13 @@ io.on('connection', (socket) => {
         if (socket.roomId) socket.broadcast.to(socket.roomId).emit('otherPlayerShot', socket.id);
     });
 
-  socket.on('shootZombie', (data) => {
+ socket.on('shootZombie', (data) => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
             let z = room.zombies[data.id];
             if (z) {
-                // [FITUR BARU] Kalkulasi Damage dari Senjata yang Dipakai Client
-                let wDmg = data.damage || 1;
+                // [FIX] Ambil nilai damage dari klien dengan aman
+                let wDmg = Number(data.damage) || 1;
                 let damage = wDmg; 
                 if (data.part === 'head') damage = wDmg * 3; 
                 else if (data.part === 'legs') damage = wDmg * 0.5;
