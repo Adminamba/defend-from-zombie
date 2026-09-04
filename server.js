@@ -257,9 +257,13 @@ io.on('connection', (socket) => {
                 if (z.hp <= 0) {
                 
                  // [FITUR BARU] Sistem Koin Acak Berskala Multi-Player (1 sampai 5 Player)
-                    let activePlayersCount = Object.keys(room.players).length || 1;
+                  // [FITUR KONTROL] Koin Bersama untuk Seluruh Player di Room
                     let baseCoins = z.type === 'boss' ? Math.floor(Math.random() * 101) + 50 : Math.floor(Math.random() * 14) + 2;
-                    let coins = baseCoins * activePlayersCount; // Makin banyak player, total koin yang didapat menyesuaikan biar pas!
+                    let activePlayersCount = Object.keys(room.players).length || 1;
+                    let totalCoins = baseCoins * activePlayersCount;
+
+                    // Kirim koin ke SEMUA player di room yang sama secara rata/bersama
+                    io.to(socket.roomId).emit('coinReward', totalCoins);
                     socket.emit('coinReward', coins);
 
                     delete room.zombies[data.id]; io.to(socket.roomId).emit('zombieDied', data.id);
