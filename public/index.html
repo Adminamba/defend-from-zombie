@@ -798,7 +798,7 @@
             }, wInfo.reloadTime);
         }
 
-      function fireWeapon() {
+     function fireWeapon() {
             if (isReloading) return;
             let now = performance.now();
             let wId = quickbarSlots[activeQuickSlot] || 'default';
@@ -825,30 +825,27 @@
             gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
 
             for (let i = 0; i < wInfo.bullets; i++) {
-                let gunTip = new THREE.Vector3(1.4, -1.4, -2.5).applyMatrix4(camera.matrixWorld);
+                // Tembak lurus dari posisi kamera (mata player / pusat crosshair) biar 100% akurat
+                let startPos = camera.position.clone();
                 
-                // Ambil titik persis di tengah layar (Crosshair) menggunakan Raycaster
                 let raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                
-                // Tentukan titik target jauh di depan crosshair (jarak 500 meter)
-                let targetPoint = new THREE.Vector3();
-                raycaster.ray.at(500, targetPoint);
-
-                // Hitung arah kecepatan proyektil dari ujung laras ke target crosshair
-                let velocity = targetPoint.clone().sub(gunTip).normalize().multiplyScalar(350); // Kecepatan tinggi (Jauh & Cepat)
+                let targetDir = raycaster.ray.direction.clone();
 
                 if (wInfo.spread > 0) {
-                    velocity.x += (Math.random() - 0.5) * wInfo.spread * 50;
-                    velocity.y += (Math.random() - 0.5) * wInfo.spread * 50;
-                    velocity.z += (Math.random() - 0.5) * wInfo.spread * 50;
+                    targetDir.x += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.y += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.z += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.normalize();
                 }
 
                 let bulletGeo = new THREE.SphereGeometry(0.1, 8, 8);
                 let bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff55 });
                 let bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
-                bulletMesh.position.copy(gunTip);
+                bulletMesh.position.copy(startPos);
                 scene.add(bulletMesh);
+
+                let velocity = targetDir.multiplyScalar(400); // Kecepatan tinggi, lurus, dan jauh
 
                 bulletsInFlight.push({
                     mesh: bulletMesh,
@@ -963,7 +960,7 @@
 
             for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
             
-// ================= UPDATE PROYEKTIL CEPAT & LURUS =================
+// ================= UPDATE PROYEKTIL & HITBOX PRESISI (KEPALA/BADAN/KAKI) =================
             for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
                 let b = bulletsInFlight[i];
                 b.life -= delta;
@@ -973,15 +970,30 @@
 
                 let hitDetected = false;
                 
+                // Cek tabrakan dengan bagian tubuh zombie (Head, Body, Legs)
                 for (let zid in zombies) {
-                    let zMesh = zombies[zid];
-                    if (zMesh && b.mesh.position.distanceTo(zMesh.position) < 2.5) {
-                        socket.emit('shootZombie', { id: zid, part: 'body', damage: b.damage });
-                        hitDetected = true;
-                        break;
+                    let zGroup = zombies[zid];
+                    if (zGroup) {
+                        // Iterasi bagian-bagian tubuh zombie (Anak objek dari group zombie)
+                        for (let child of zGroup.children) {
+                            if (child.type === "Mesh" && !child.userData.isLabel) {
+                                let childWorldPos = new THREE.Vector3();
+                                child.getWorldPosition(childWorldPos);
+                                
+                                // Jika peluru mendekati bagian tubuh tersebut
+                                if (b.mesh.position.distanceTo(childWorldPos) < 1.8) {
+                                    let hitPart = child.userData.part || 'body';
+                                    socket.emit('shootZombie', { id: zid, part: hitPart, damage: b.damage });
+                                    hitDetected = true;
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    if (hitDetected) break;
                 }
 
+                // Cek tabrakan dengan dinding bangunan
                 if (!hitDetected) {
                     for (let w of serverWalls) {
                         let hwX = w.width / 2; let hwZ = w.depth / 2;
