@@ -12,6 +12,13 @@
         #level-ui { position: absolute; top: 15px; right: 15px; color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; text-align: right;}
         #flashlight-info { position: absolute; bottom: 20px; left: 20px; color: #ffd700; font-size: 18px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
         
+        /* Amunisi & Reload UI */
+        #ammo-display {
+            position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 22px; font-weight: bold; z-index: 100; display: none;
+            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 6px; border: 1px solid #777;
+        }
+
         .overlay-screen { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 200; }
         #login-overlay, #lobby-room-menu { background: rgba(0,0,0,0.85); }
         
@@ -30,7 +37,7 @@
         #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
         #wave-announcer { position: absolute; top: 25%; width: 100%; text-align: center; color: #ff5500; font-size: 32px; font-weight: bold; z-index: 10; text-shadow: 3px 3px 6px #000; display: none; pointer-events: none;}
 
-       /* ================= STYLING INVENTORY GAYA MINECRAFT ================= */
+        /* STYLING INVENTORY GAYA MINECRAFT */
         #inventory-modal {
             position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(198, 198, 198, 0.95); border: 4px solid #373737; border-radius: 6px;
@@ -64,7 +71,7 @@
         .quick-slot.active { border: 3px solid #ffff00; box-shadow: 0 0 10px #ffff00, inset 2px 2px 0px #fff, inset -2px -2px 0px #555; }
         .slot-num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: #111; font-weight: bold; }
 
-        /* ================= STYLING SHOP & KOIN ================= */
+        /* STYLING SHOP & KOIN */
         #coin-display {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10;
@@ -84,41 +91,29 @@
         .shop-item { background: #222; border: 2px solid #555; padding: 12px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
         .shop-btn { background: #00ff00; color: #000; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
         .shop-btn:hover { background: #fff; }
-        
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
 </head>
 <body>
     <div id="damage-overlay"></div>
-    <div id="coin-display">💰 Koin: <span id="my-coins">0</span></div>
-    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata</div>
-    
-    <div id="shop-modal">
-        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA (Rumah Hijau)</h2>
-        <div id="shop-items-container"></div>
-        <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:0;">Tekan B lagi atau tutup layar untuk keluar.</p>
-    </div>
     <div id="crosshair">⌖</div>
     <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
     <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
     
+    <div id="coin-display">💰 Koin: <span id="my-coins">0</span></div>
+    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata</div>
+    <div id="ammo-display">Peluru: <span id="current-ammo">∞</span> / <span id="reserve-ammo">∞</span></div>
+
+    <div id="shop-modal">
+        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA (Rumah Hijau)</h2>
+        <div id="shop-items-container"></div>
+        <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:0;">Tekan B lagi atau tutup layar untuk keluar.</p>
+    </div>
+    
     <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 14px; color: white;">(Klik Kiri ganti target | Tahan Klik Kanan + Geser Mouse putar kamera)</span></div>
     <div id="wave-announcer">HARI SELESAI!<br><span style="font-size: 20px; color: #fff;" id="wave-timer">Waktu Persiapan: 120s</span></div>
-
-    <div id="login-overlay" class="overlay-screen">
-        <div class="menu-box">
-            <h1 style="color: #FFD700; margin-top:0;">ZOMBIE SURVIVAL 99 DAYS</h1>
-            <input type="text" id="username-input" placeholder="Nama Kamu" maxlength="12">
-            <h3 style="margin-top: 20px;">Daftar Publik Room:</h3>
-            <div id="room-list" style="margin-bottom: 15px;">Mencari Room...</div>
-            <hr style="border-color: #555;">
-            <p>Atau Buat Room Baru:</p>
-            <input type="text" id="room-name-input" placeholder="Nama Room Baru" maxlength="15">
-            <button id="btn-create-room">BUAT & MASUK ROOM</button>
-        </div>
-    </div>
 
     <!-- Hotbar 4 Kotak di Bawah Layar -->
     <div id="quickbar-container">
@@ -128,7 +123,7 @@
         <div class="quick-slot" id="quick-3"><span class="slot-num">4</span>🛡️</div>
     </div>
 
-    <!-- Inventory Modal Besar (Grid Lebih Luas di Atas) -->
+    <!-- Inventory Modal Besar -->
     <div id="inventory-modal">
         <h3 style="margin: 0 0 5px 0; color: #222; font-size: 18px; font-weight: bold; text-align: left;">Inventory</h3>
         <div id="inventory-grid">
@@ -144,6 +139,19 @@
             <div class="inv-slot">📦</div>
             <div class="inv-slot">📦</div>
             <div class="inv-slot">📦</div>
+        </div>
+    </div>
+
+    <div id="login-overlay" class="overlay-screen">
+        <div class="menu-box">
+            <h1 style="color: #FFD700; margin-top:0;">ZOMBIE SURVIVAL 99 DAYS</h1>
+            <input type="text" id="username-input" placeholder="Nama Kamu" maxlength="12">
+            <h3 style="margin-top: 20px;">Daftar Publik Room:</h3>
+            <div id="room-list" style="margin-bottom: 15px;">Mencari Room...</div>
+            <hr style="border-color: #555;">
+            <p>Atau Buat Room Baru:</p>
+            <input type="text" id="room-name-input" placeholder="Nama Room Baru" maxlength="15">
+            <button id="btn-create-room">BUAT & MASUK ROOM</button>
         </div>
     </div>
 
@@ -175,7 +183,7 @@
         let damageIndicators = [];
         let myHp = 100;
         let isInventoryOpen = false;
-        let activeQuickSlot = 0; // Index 0-3 (Angka 1-4)
+        let activeQuickSlot = 0; 
         let isPaused = true;
         let isGameStarted = false;
         
@@ -192,15 +200,25 @@
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
-        function playGunSound() {
+
+        // Efek Suara Tembakan Berbeda Berdasarkan Tipe Senjata
+        function playGunSound(type) {
             if (!audioCtx) return;
-            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.12, audioCtx.sampleRate);
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
-            for (let i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
+            let freq = 1200;
+            if (type === 'koboy') freq = 800;
+            else if (type === 'uzi') freq = 1800;
+            else if (type === 'mp5') freq = 1500;
+            else if (type === 'shotgun') freq = 400;
+            else if (type === 'm249') freq = 1000;
+
+            for (let i = 0; i < buffer.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.05));
             const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
             const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1200, audioCtx.currentTime); filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.12);
-            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.6, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+            filter.frequency.setValueAtTime(freq, audioCtx.currentTime); 
+            filter.frequency.exponentialRampToValueValueAtTime ? filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15) : filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.15);
+            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.7, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
         }
 
@@ -224,25 +242,86 @@
         renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
         const controls = new PointerLockControls(camera, document.body); scene.add(controls.getObject());
 
-     const gunGroup = new THREE.Group();
-        // Model Senjata Utama yang Lebih Rapi (Bodi, Laras Panjang, Magazen, & Kokangan)
-        const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 })); 
-        gunBody.position.set(0, 0, -0.8);
-        
-        const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })); 
-        gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position.set(0, 0.05, -1.8);
-        
-        const gunMag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.4), new THREE.MeshStandardMaterial({ color: 0x111111 })); 
-        gunMag.position.set(0, -0.5, -0.5); gunMag.rotation.x = 0.2;
+        // ================= SISTEM SENJATA & MODEL 3D UNIK =================
+        let myCoins = 0; let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
+        let isReloading = false;
 
-        const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d2817 })); 
-        gunGrip.position.set(0, -0.7, 0.2); gunGrip.rotation.x = Math.PI / 6;
+        const WEAPONS = {
+            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, price: 0, maxLv: 5, magSize: Infinity, reserve: Infinity, reloadTime: 0 },
+            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 5, fireRate: 500, auto: false, spread: 0, bullets: 1, price: 300, maxLv: 10, magSize: 12, reserve: 60, reloadTime: 1500 },
+            'uzi': { id: 'uzi', name: 'Uzi Pro', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.06, bullets: 1, price: 1000, maxLv: 10, magSize: 20, reserve: 120, reloadTime: 1800 },
+            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, price: 2500, maxLv: 10, magSize: 30, reserve: 120, reloadTime: 2000 },
+            'shotgun': { id: 'shotgun', name: 'Shotgun Taktis', icon: '💥', baseDmg: 14, fireRate: 800, auto: false, spread: 0.15, bullets: 7, price: 4500, maxLv: 10, magSize: 7, reserve: 60, reloadTime: 2500 },
+            'm249': { id: 'm249', name: 'M249 SAW', icon: '🔥', baseDmg: 18, fireRate: 130, auto: true, spread: 0.04, bullets: 1, price: 9000, maxLv: 10, magSize: 100, reserve: 500, reloadTime: 3500 }
+        };
 
-        gunGroup.add(gunBody); gunGroup.add(gunBarrel); gunGroup.add(gunMag); gunGroup.add(gunGrip);
-        
+        let ownedWeapons = { 'default': 1 }; 
+        let weaponAmmo = {
+            'default': { current: Infinity, reserve: Infinity },
+            'koboy': { current: 12, reserve: 60 },
+            'uzi': { current: 20, reserve: 120 },
+            'mp5': { current: 30, reserve: 120 },
+            'shotgun': { current: 7, reserve: 60 },
+            'm249': { current: 100, reserve: 500 }
+        };
+        let quickbarSlots = ['default', null, null, null];
+
+        const gunGroup = new THREE.Group();
+        let currentGunMeshName = 'default';
         const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
         muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash);
         gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
+
+        function updateGunModel(gunKey) {
+            currentGunMeshName = gunKey;
+            while(gunGroup.children.length > 1) { gunGroup.remove(gunGroup.children[1]); } // Hapus mesh lama, sisakan muzzleFlash
+
+            if (gunKey === 'koboy') {
+                // Model Revolver Koboy Klasik
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 1.4), new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.8})); body.position.set(0,0,-0.6);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.5);
+                const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4), new THREE.MeshStandardMaterial({color: 0x333333})); cylinder.rotation.z = Math.PI/2; cylinder.position.set(0, -0.05, -0.8);
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x8B4513})); grip.position.set(0, -0.6, -0.1); grip.rotation.x = Math.PI/6;
+                gunGroup.add(body, barrel, cylinder, grip);
+            } else if (gunKey === 'uzi') {
+                // Model Uzi Pro (Kecil kotak compact)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 1.2), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); body.position.set(0,0,-0.5);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.6), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -1.2);
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.3), new THREE.MeshStandardMaterial({color: 0x111111})); mag.position.set(0, -0.7, -0.3); mag.rotation.x = 0.1;
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
+                gunGroup.add(body, barrel, mag, grip);
+            } else if (gunKey === 'mp5') {
+                // Model MP5 (Popor besi panjang & mag melengkung)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({color: 0x222222})); body.position.set(0,0,-0.8);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.9);
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 1.0), new THREE.MeshStandardMaterial({color: 0x111111})); stock.position.set(0, 0, 0.5);
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.0, 0.4), new THREE.MeshStandardMaterial({color: 0x111111})); mag.position.set(0, -0.8, -0.4); mag.rotation.x = 0.3;
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
+                gunGroup.add(body, barrel, stock, mag, grip);
+            } else if (gunKey === 'shotgun') {
+                // Model Shotgun Taktis Panjang
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 2.2), new THREE.MeshStandardMaterial({color: 0x2b2b2b})); body.position.set(0,0,-1);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.0), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.08, -2.2);
+                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.8), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); pump.position.set(0, -0.1, -1.6);
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 1.2), new THREE.MeshStandardMaterial({color: 0x4a2e18})); stock.position.set(0, -0.1, 0.8);
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.1); grip.rotation.x = Math.PI/6;
+                gunGroup.add(body, barrel, pump, stock, grip);
+            } else if (gunKey === 'm249') {
+                // Model M249 SAW Besar
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 2.5), new THREE.MeshStandardMaterial({color: 0x334433})); body.position.set(0,0,-1.2);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -2.5);
+                const boxMag = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.8), new THREE.MeshStandardMaterial({color: 0x223322})); boxMag.position.set(0.1, -0.7, -0.8);
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x111111})); grip.position.set(0, -0.8, 0.3); grip.rotation.x = Math.PI/6;
+                gunGroup.add(body, barrel, boxMag, grip);
+            } else {
+                // Default Pistol
+                const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); gunBody.position.set(0, 0, -0.8);
+                const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111 })); gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position.set(0, 0.05, -1.8);
+                const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d2817 })); gunGrip.position.set(0, -0.7, 0.2); gunGrip.rotation.x = Math.PI / 6;
+                gunGroup.add(gunBody, gunBarrel, gunGrip);
+            }
+        }
+        updateGunModel('default');
 
         const flashlight = new THREE.SpotLight(0xffffff, 180, 300, Math.PI/4, 0.5, 1);
         flashlight.position.set(0, 0, 1); flashlight.target.position.set(0, 0, -20);
@@ -252,29 +331,23 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
-     // API UNGGUN RAKSASA DIPERBESAR 60% DI TENGAH BASE (0,0)
+        // API UNGGUN RAKSASA
         const campfireGroup = new THREE.Group();
         campfireGroup.position.set(0, 0, 0);
-        
-        // Tumpukan Kayu Raksasa (Diperbesar 60%: radius 1.15, panjang 13.4)
         const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
         for(let i = 0; i < 11; i++) {
             let log = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 13.4), logMat);
             log.position.set((Math.random()-0.5)*3.8, 4.5, (Math.random()-0.5)*3.8);
-            log.rotation.z = (Math.random() - 0.5) * 0.8;
-            log.rotation.x = (Math.random() - 0.5) * 0.8;
+            log.rotation.z = (Math.random() - 0.5) * 0.8; log.rotation.x = (Math.random() - 0.5) * 0.8;
             campfireGroup.add(log);
         }
-        
-        // Cahaya Api Raksasa (Jangkauan dan intensitas cahaya diperbesar)
         const campfireLight = new THREE.PointLight(0xff4500, 500, 180);
         campfireLight.position.y = 8; campfireGroup.add(campfireLight);
 
-        // Healthbar 3D di atas Api Unggun Raksasa (Diperbesar 60%)
         const cfCanvas = document.createElement('canvas'); cfCanvas.width = 256; cfCanvas.height = 64;
         const cfCtx = cfCanvas.getContext('2d'); const cfTexture = new THREE.CanvasTexture(cfCanvas);
         const cfMesh = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 2.9), new THREE.MeshBasicMaterial({ map: cfTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-        cfMesh.position.y = 17.5; campfireGroup.add(cfMesh); // Posisi healthbar dinaikin menyesuaikan tinggi kayu raksasa
+        cfMesh.position.y = 17.5; campfireGroup.add(cfMesh);
         
         function updateCampfireLabel(currentHp, maxHp) {
             cfCtx.clearRect(0, 0, 256, 64);
@@ -292,7 +365,6 @@
             serverWalls.forEach(w => {
                 const group = new THREE.Group();
                 group.position.set(w.x, 0, w.z); 
-
                 const boxGeo = new THREE.BoxGeometry(w.width, w.height, w.depth); 
                 const boxMat = new THREE.MeshStandardMaterial({ color: w.color });
                 const baseBox = new THREE.Mesh(boxGeo, boxMat);
@@ -302,20 +374,10 @@
                 if (w.name === "Rumah_Putih") {
                     const roof = new THREE.Mesh(new THREE.ConeGeometry(20, 8, 4), new THREE.MeshStandardMaterial({ color: 0x990000 }));
                     roof.position.set(0, w.height + 4, 0); roof.rotation.y = Math.PI / 4; group.add(roof);
-                    const chest = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshStandardMaterial({ color: 0x8B4513 }));
-                    chest.position.set(0, 1.5, 0); group.add(chest);
                 } else if (w.name === "Rumah_Hijau") {
                     const canopy = new THREE.Mesh(new THREE.BoxGeometry(w.width + 2, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
                     canopy.position.set(0, w.height - 1, w.depth/2 + 1.5); group.add(canopy);
-                    const weaponRack = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 1), new THREE.MeshStandardMaterial({ color: 0x555555 }));
-                    weaponRack.position.set(0, 2.5, -4); group.add(weaponRack);
-                } else if (w.name === "Rumah_Biru") {
-                    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
-                    ant.position.set(0, w.height + 2, 0); group.add(ant);
-                    const pod = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 6, 16), new THREE.MeshStandardMaterial({ color: 0x4444ff, transparent: true, opacity: 0.6 }));
-                    pod.position.set(0, 3, 0); group.add(pod);
                 }
-
                 scene.add(group);
                 wallMeshes.push(baseBox); 
             });
@@ -327,7 +389,6 @@
             ctx.font = 'Bold 40px Arial'; ctx.fillStyle = color; ctx.textAlign = 'center'; 
             ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
             ctx.strokeText(text, 64, 40); ctx.fillText(text, 64, 40);
-            
             const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
             sprite.position.set(x, y, z); sprite.scale.set(4, 2, 1);
             scene.add(sprite);
@@ -374,14 +435,13 @@
 
         socket.on('respawnApproved', (pData) => {
             document.getElementById('quickbar-container').style.display = 'flex';
+            document.getElementById('ammo-display').style.display = 'block';
             document.getElementById('death-screen').style.display = 'none';
             document.getElementById('spectator-ui').style.display = 'none';
             camera.position.set(pData.x, 5.5, pData.z);
             camera.rotation.set(0, 0, 0); 
-            
             gunGroup.visible = true;
             if (flashlightOn) flashlight.visible = true;
-
             myHp = 100; isSpectating = false; specAngleX = 0; specAngleY = 0; updateUI(); 
         });
 
@@ -389,7 +449,13 @@
 
         controls.addEventListener('lock', () => {
             isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none';
-            if (!isSpectating) { document.getElementById('crosshair').style.display = 'block'; document.getElementById('ui').style.display = 'block'; document.getElementById('flashlight-info').style.display = 'block'; }
+            if (!isSpectating) { 
+                document.getElementById('crosshair').style.display = 'block'; 
+                document.getElementById('ui').style.display = 'block'; 
+                document.getElementById('flashlight-info').style.display = 'block'; 
+                document.getElementById('quickbar-container').style.display = 'flex';
+                document.getElementById('ammo-display').style.display = 'block';
+            }
             document.getElementById('level-ui').style.display = 'block';
         });
 
@@ -403,30 +469,21 @@
         function createHumanoidModel(colorHex, username) {
             const group = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; group.add(body);
-            
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; 
             const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
             const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
             const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 0.2, -0.76);
             const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 0.2, -0.76);
-            head.add(eyeL); head.add(eyeR);
-            group.add(head);
+            head.add(eyeL); head.add(eyeR); group.add(head);
 
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); armL.position.set(-1.4, 3, 0); group.add(armL);
-           const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); 
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); 
             armR.position.set(1.4, 3.5, -0.5); armR.rotation.x = -Math.PI / 2;
-            
-            // Model Senjata Player Lain yang Lebih Nyata (Terlihat oleh semua orang)
             const tGun = new THREE.Group();
             const tgBody = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x222222 })); tgBody.position.set(0, -1.2, -0.5);
             const tgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })); tgBarrel.rotation.x = Math.PI / 2; tgBarrel.position.set(0, -1.1, -1.4);
-            const tgMag = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.3), new THREE.MeshStandardMaterial({ color: 0x111111 })); tgMag.position.set(0, -1.6, -0.3); tgMag.rotation.x = 0.2;
-            
-            tGun.add(tgBody); tGun.add(tgBarrel); tGun.add(tgMag);
-            
+            tGun.add(tgBody); tGun.add(tgBarrel);
             const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -1.1, -2); tGun.add(oFlash);
-            armR.add(tGun);
-            group.add(armR);
+            armR.add(tGun); group.add(armR);
 
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); group.add(legL);
             const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legR.position.set(0.6, 0.5, 0); group.add(legR);
@@ -435,8 +492,7 @@
             const ctx = canvas.getContext('2d'); const texture = new THREE.CanvasTexture(canvas);
             const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
             labelMesh.position.y = 7; labelMesh.userData = { isLabel: true }; group.add(labelMesh);
-
-            group.userData = { ctx, texture, labelMesh, hp: 100, username, armL, armR, legL, legR, walkTime: 0, oFlash };
+            group.userData = { ctx, texture, labelMesh, hp: 100, username, armR, legL, legR, oFlash };
             updatePlayerLabel(group); return group;
         }
 
@@ -458,8 +514,6 @@
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = -Math.PI/2; armL.userData = { part: 'body' }; group.add(armL);
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = -Math.PI/2; armR.userData = { part: 'body' }; group.add(armR);
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legL.position.set(-0.6*s, 0.5*s, 0); legL.userData = { part: 'legs' }; group.add(legL);
             const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legR.position.set(0.6*s, 0.5*s, 0); legR.userData = { part: 'legs' }; group.add(legR);
 
@@ -502,15 +556,6 @@
             if (otherPlayers[id]) {
                 const flash = otherPlayers[id].userData.oFlash;
                 flash.intensity = 5; setTimeout(() => flash.intensity = 0, 50);
-                
-                let startPos = new THREE.Vector3();
-                flash.getWorldPosition(startPos);
-                let forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), otherPlayers[id].rotation.y);
-                let endPos = startPos.clone().add(forward.multiplyScalar(60));
-                
-                const geo = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
-                const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
-                scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
             }
         });
 
@@ -534,7 +579,7 @@
 
         socket.on('campfireHpUpdate', (data) => {
             document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
-            updateCampfireLabel(data.hp, 200); // Update tampilan bar 3D raksasa di atas api
+            updateCampfireLabel(data.hp, 200);
         });
 
         socket.on('waveCleared', (data) => {
@@ -580,6 +625,11 @@
             myHp = Math.min(100, myHp + 30); updateUI(); 
         });
 
+        socket.on('coinReward', (amount) => { 
+            myCoins += amount; document.getElementById('my-coins').innerText = myCoins; 
+            if (isShopOpen) renderShop(); 
+        });
+
         socket.on('playerHpUpdate', (data) => {
             if (data.id === socket.id && myHp > 0) {
                 myHp = data.hp; updateUI();
@@ -587,8 +637,9 @@
                 
                 if (myHp <= 0 && !isSpectating) {
                     document.getElementById('quickbar-container').style.display = 'none';
-document.getElementById('inventory-modal').style.display = 'none';
-isInventoryOpen = false;
+                    document.getElementById('inventory-modal').style.display = 'none';
+                    document.getElementById('ammo-display').style.display = 'none';
+                    isInventoryOpen = false;
                     isSpectating = true;
                     controls.unlock();
                     
@@ -649,40 +700,19 @@ isInventoryOpen = false;
             document.getElementById('lobby-player-count').innerText = totalPlayers;
             document.getElementById('hp').innerText = myHp;
             document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%';
+            
+            // Update UI Amunisi
+            let activeWId = quickbarSlots[activeQuickSlot] || 'default';
+            let ammoInfo = weaponAmmo[activeWId];
+            if (ammoInfo) {
+                document.getElementById('current-ammo').innerText = ammoInfo.current === Infinity ? '∞' : ammoInfo.current;
+                document.getElementById('reserve-ammo').innerText = ammoInfo.reserve === Infinity ? '∞' : ammoInfo.reserve;
+            }
         }
 
-       const raycaster = new THREE.Raycaster(); let lasers = [];
-        window.addEventListener('contextmenu', e => e.preventDefault());
-
-        // ================= FITUR SENJATA, TOKO & NPC =================
-        let myCoins = 0; let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
-        
-        const WEAPONS = {
-            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, price: 0, maxLv: 5 },
-            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 4, fireRate: 500, auto: false, spread: 0, bullets: 1, price: 300, maxLv: 10 },
-            'uzi': { id: 'uzi', name: 'Uzi', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.05, bullets: 1, price: 1000, maxLv: 10 },
-            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, price: 2500, maxLv: 10 },
-            'shotgun': { id: 'shotgun', name: 'Shotgun', icon: '💥', baseDmg: 12, fireRate: 800, auto: false, spread: 0.15, bullets: 6, price: 4500, maxLv: 10 },
-            'm249': { id: 'm249', name: 'M249', icon: '🔥', baseDmg: 18, fireRate: 150, auto: true, spread: 0.04, bullets: 1, price: 9000, maxLv: 10 }
-        };
-        let ownedWeapons = { 'default': 1 }; 
-        let quickbarSlots = ['default', null, null, null]; // Quickbar 1-4
-        
-        // NPC Penjaga (Rumah Hijau)
-        const npcGroup = new THREE.Group();
-        const npcBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3, 1.5), new THREE.MeshStandardMaterial({ color: 0x00ff00 })); npcBody.position.y = 3; npcGroup.add(npcBody);
-        const npcHead = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); npcHead.position.y = 5; npcGroup.add(npcHead);
-        npcGroup.position.set(55, 0, 30); scene.add(npcGroup); // Posisi Rumah Hijau
-
-        socket.on('coinReward', (amount) => { 
-            myCoins += amount; document.getElementById('my-coins').innerText = myCoins; 
-            if (isShopOpen) renderShop(); 
-        });
-
-     window.buyWeapon = function(key) {
+        window.buyWeapon = function(key) {
             let w = WEAPONS[key];
             if (myCoins >= w.price) {
-                // Koin bersama berkurang untuk dibelikan senjata bersama
                 myCoins -= w.price; 
                 ownedWeapons[key] = 1; 
                 document.getElementById('my-coins').innerText = myCoins;
@@ -692,21 +722,20 @@ isInventoryOpen = false;
 
         window.upgradeWeapon = function(key, cost) {
             if (myCoins >= cost) {
-                // Koin bersama berkurang untuk upgrade senjata tim
                 myCoins -= cost; 
                 ownedWeapons[key]++; 
                 document.getElementById('my-coins').innerText = myCoins;
                 renderShop();
             } else alert("Koin bersama tim tidak cukup!");
         };
-        
+
         function renderShop() {
             const container = document.getElementById('shop-items-container'); container.innerHTML = '';
             Object.keys(WEAPONS).forEach(key => {
                 if (key === 'default') return;
                 let w = WEAPONS[key]; let itemDiv = document.createElement('div'); itemDiv.className = 'shop-item';
                 let isOwned = ownedWeapons[key] !== undefined; let lv = ownedWeapons[key] || 0;
-                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | ${w.auto ? 'Tahan Klik (Auto)' : 'Sekali Klik'}</span></div>`;
+                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | Mag: ${w.magSize}</span></div>`;
                 if (!isOwned) {
                     html += `<button class="shop-btn" onclick="buyWeapon('${key}')">Beli (${w.price} Koin)</button>`;
                 } else if (lv < w.maxLv) {
@@ -717,7 +746,6 @@ isInventoryOpen = false;
             });
         }
 
-        // Render Inventory yang nyambung ke Quickbar
         function renderInventory() {
             let invGrid = document.getElementById('inventory-grid'); invGrid.innerHTML = '';
             let ownedIds = Object.keys(ownedWeapons);
@@ -728,58 +756,104 @@ isInventoryOpen = false;
                     slot.onclick = () => {
                         quickbarSlots[activeQuickSlot] = wId; 
                         document.getElementById('quick-' + activeQuickSlot).innerHTML = `<span class="slot-num">${activeQuickSlot+1}</span>${WEAPONS[wId].icon}`;
+                        updateGunModel(wId);
+                        updateUI();
                     };
                 } else slot.innerHTML = '📦';
                 invGrid.appendChild(slot);
             }
         }
 
+        // ================= SISTEM PROYEKTIL FISIKA ALA GAME AAA =================
+        let bulletsInFlight = []; // Menyimpan proyektil aktif
+
+        function reloadWeapon() {
+            if (isReloading) return;
+            let wId = quickbarSlots[activeQuickSlot] || 'default';
+            let wInfo = WEAPONS[wId];
+            let ammo = weaponAmmo[wId];
+
+            if (wInfo.magSize === Infinity || ammo.current >= wInfo.magSize || ammo.reserve <= 0) return;
+
+            isReloading = true;
+            document.getElementById('ammo-display').innerText = "RELOADING...";
+
+            // Animasi sederhana senjata turun saat reload
+            gunGroup.position.y = -2.2;
+
+            setTimeout(() => {
+                let needed = wInfo.magSize - ammo.current;
+                let take = Math.min(needed, ammo.reserve);
+                ammo.current += take;
+                ammo.reserve -= take;
+                isReloading = false;
+                gunGroup.position.y = -1.4;
+                updateUI();
+            }, wInfo.reloadTime);
+        }
+
         function fireWeapon() {
+            if (isReloading) return;
             let now = performance.now();
             let wId = quickbarSlots[activeQuickSlot] || 'default';
-            let wInfo = WEAPONS[wId]; let wLv = ownedWeapons[wId] || 1;
-            
-            if (now - lastShotTime < wInfo.fireRate) return;
-            lastShotTime = now;
+            let wInfo = WEAPONS[wId];
+            let ammo = weaponAmmo[wId];
 
-            // Damage naik pesat per upgrade!
+            if (now - lastShotTime < wInfo.fireRate) return;
+
+            if (ammo.current <= 0) {
+                reloadWeapon();
+                return;
+            }
+
+            if (ammo.current !== Infinity) ammo.current--;
+            updateUI();
+
+            lastShotTime = now;
+            let wLv = ownedWeapons[wId] || 1;
             let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
 
-            playGunSound(); socket.emit('playerShootVisual');
+            playGunSound(wId); 
+            socket.emit('playerShootVisual');
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-            gunGroup.position.z = -2.5; setTimeout(() => gunGroup.position.z = -3, 50);
+            gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
 
-            for(let i=0; i<wInfo.bullets; i++) {
+            // Tembak Proyektil Fisika Berdasarkan Arah Crosshair & Kamera
+            for (let i = 0; i < wInfo.bullets; i++) {
+                let gunTip = new THREE.Vector3(1.4, -1.4, -2.5).applyMatrix4(camera.matrixWorld);
+                
+                // Ambil arah crosshair (pusat layar)
+                let raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                if (wInfo.spread > 0) { // Sistem Spread (Khusus Shotgun dll)
-                    let dir = raycaster.ray.direction.clone();
-                    dir.x += (Math.random() - 0.5) * wInfo.spread; dir.y += (Math.random() - 0.5) * wInfo.spread; dir.z += (Math.random() - 0.5) * wInfo.spread;
-                    dir.normalize(); raycaster.ray.direction.copy(dir);
+                let targetDir = raycaster.ray.direction.clone();
+
+                if (wInfo.spread > 0) {
+                    targetDir.x += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.y += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.z += (Math.random() - 0.5) * wInfo.spread;
+                    targetDir.normalize();
                 }
 
-                let collidableMeshes = [...wallMeshes];
-                Object.values(zombies).forEach(z => z.children.forEach(c => { if(!c.userData.isLabel) collidableMeshes.push(c); }));
-                let intersects = raycaster.intersectObjects(collidableMeshes);
-                let gunTip = new THREE.Vector3(1.5, -1.5, -4.5).applyMatrix4(camera.matrixWorld);
-                let targetPoint = new THREE.Vector3();
+                // Buat Mesh Peluru Fisika (Kecil bercahaya kuning/oranye)
+                let bulletGeo = new THREE.SphereGeometry(0.12, 8, 8);
+                let bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                let bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
+                bulletMesh.position.copy(gunTip);
+                scene.add(bulletMesh);
 
-              if (intersects.length > 0) {
-                    targetPoint = intersects[0].point; let hitMesh = intersects[0].object;
-                    if (hitMesh.parent && hitMesh.parent.userData.id) {
-                        // [FIX] Pastikan struktur pengiriman data damage senjata valid
-                        socket.emit('shootZombie', { 
-                            id: hitMesh.parent.userData.id, 
-                            part: hitMesh.userData.part || 'body', 
-                            damage: finalDmg 
-                        });
-                    }
-                } else { raycaster.ray.at(300, targetPoint); }
+                let velocity = targetDir.multiplyScalar(120); // Kecepatan proyektil (force)
 
-                const geo = new THREE.BufferGeometry().setFromPoints([gunTip, targetPoint]);
-                const laser = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
-                scene.add(laser); lasers.push({ mesh: laser, time: performance.now() });
+                bulletsInFlight.push({
+                    mesh: bulletMesh,
+                    velocity: velocity,
+                    damage: finalDmg,
+                    life: 3.0 // Umur peluru 3 detik max
+                });
             }
         }
+
+        const raycaster = new THREE.Raycaster(); let lasers = [];
+        window.addEventListener('contextmenu', e => e.preventDefault());
 
         let specAngleX = 0; let specAngleY = 0;
         window.addEventListener('mousemove', (e) => {
@@ -807,7 +881,7 @@ isInventoryOpen = false;
                 return;
             }
             if (controls.isLocked && myHp > 0 && e.button === 0) {
-                isShooting = true; fireWeapon(); // Tembakan pertama langsung
+                isShooting = true; fireWeapon();
             }
         });
 
@@ -816,21 +890,24 @@ isInventoryOpen = false;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
 
-   document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', (e) => {
             if (isPaused) return;
 
-            // BUKA TOKO DENGAN TOMBOL 'B'
+            if (e.code === 'KeyR') {
+                reloadWeapon();
+                return;
+            }
+
             if (e.code === 'KeyB') {
                 if (myHp <= 0) return;
                 let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
-                if (distToNPC < 15) { // Cek Jarak dengan NPC
+                if (distToNPC < 15) { 
                     isShopOpen = !isShopOpen; const shopModal = document.getElementById('shop-modal');
                     if (isShopOpen) { renderShop(); shopModal.style.display = 'block'; controls.unlock(); } 
                     else { shopModal.style.display = 'none'; controls.lock(); }
                 } return;
             }
 
-            // TOGGLE INVENTORY DENGAN TOMBOL 'E' (TIDAK MEMICU PAUSE)
             if (e.code === 'KeyE') {
                 if (myHp <= 0) return; 
                 isInventoryOpen = !isInventoryOpen; const invModal = document.getElementById('inventory-modal');
@@ -839,15 +916,17 @@ isInventoryOpen = false;
                 return;
             }
 
-            // PINDAH SLOT QUICKBAR DI BAWAH LAYAR DENGAN ANGKA 1 - 4
             if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
                 let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
                 activeQuickSlot = slotIdx;
                 document.querySelectorAll('.quick-slot').forEach((el, idx) => { el.classList.toggle('active', idx === slotIdx); });
+                let wId = quickbarSlots[activeQuickSlot] || 'default';
+                updateGunModel(wId);
+                updateUI();
                 return;
             }
 
-            if (isInventoryOpen || isShopOpen || myHp <= 0) return; // Kunci gerak kalau ada menu terbuka
+            if (isInventoryOpen || isShopOpen || myHp <= 0) return;
 
             if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
             if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
@@ -859,7 +938,6 @@ isInventoryOpen = false;
             if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
             if (e.code === 'Space' && canJump && currentStamina >= 15) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
         });
-        
         document.addEventListener('keyup', (e) => {
             if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
             if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
@@ -877,6 +955,49 @@ isInventoryOpen = false;
             }
 
             for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
+            
+            // ================= UPDATE PROYEKTIL FISIKA & GRAVITASI =================
+            for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
+                let b = bulletsInFlight[i];
+                b.life -= delta;
+                
+                // Terapkan gravitasi dan pergerakan proyektil
+                b.velocity.y -= 9.8 * 8 * delta; // Efek gravitasi peluru melengkung
+                let stepMove = b.velocity.clone().multiplyScalar(delta);
+                b.mesh.position.add(stepMove);
+
+                // Cek tabrakan proyektil dengan tembok atau zombie
+                let hitDetected = false;
+                
+                // Cek ke zombie
+                for (let zid in zombies) {
+                    let zMesh = zombies[zid];
+                    if (zMesh && b.mesh.position.distanceTo(zMesh.position) < 2.5) {
+                        socket.emit('shootZombie', { id: zid, part: 'body', damage: b.damage });
+                        hitDetected = true;
+                        break;
+                    }
+                }
+
+                // Cek ke dinding bangunan
+                if (!hitDetected) {
+                    for (let w of serverWalls) {
+                        let hwX = w.width / 2; let hwZ = w.depth / 2;
+                        if (b.mesh.position.x > w.x - hwX && b.mesh.position.x < w.x + hwX &&
+                            b.mesh.position.z > w.z - hwZ && b.mesh.position.z < w.z + hwZ &&
+                            b.mesh.position.y < w.height) {
+                            hitDetected = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
+                    scene.remove(b.mesh);
+                    bulletsInFlight.splice(i, 1);
+                }
+            }
+
             for (let i = debris.length - 1; i >= 0; i--) {
                 let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
                 d.mesh.rotation.x += d.rx * delta; d.mesh.rotation.y += d.ry * delta; d.mesh.rotation.z += d.rz * delta;
@@ -886,31 +1007,20 @@ isInventoryOpen = false;
             if (isSpectating) {
                 if (spectateTargets.length > 0 && otherPlayers[spectateTargets[spectateIndex]]) {
                     let target = otherPlayers[spectateTargets[spectateIndex]];
-                    
-                    let distance = 18;
-                    let heightOffset = 6;
-                    
+                    let distance = 18; let heightOffset = 6;
                     let yaw = target.rotation.y + specAngleX;
                     let targetOffsetX = Math.sin(yaw) * distance;
                     let targetOffsetZ = Math.cos(yaw) * distance;
                     let targetOffsetY = heightOffset + (specAngleY * 12);
-
-                    let idealCameraPos = new THREE.Vector3(
-                        target.position.x + targetOffsetX, 
-                        target.position.y + targetOffsetY, 
-                        target.position.z + targetOffsetZ
-                    );
-
+                    let idealCameraPos = new THREE.Vector3(target.position.x + targetOffsetX, target.position.y + targetOffsetY, target.position.z + targetOffsetZ);
                     camera.position.lerp(idealCameraPos, 0.1);
                     let idealLookAt = target.position.clone().add(new THREE.Vector3(0, 2, 0));
                     camera.lookAt(idealLookAt);
-                    
                     document.getElementById('spec-name').innerText = target.userData.username;
                 } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
             } 
             else if (controls.isLocked && myHp > 0) {
                 let oldX = camera.position.x; let oldZ = camera.position.z;
-
                 velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 100.0 * delta; 
                 direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft); direction.normalize();
 
@@ -939,7 +1049,6 @@ isInventoryOpen = false;
                 socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
             }
 
-            // ================= LOGIKA NPC & AUTO SHOOT =================
             let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
             if (distToNPC < 15 && myHp > 0 && typeof isShopOpen !== 'undefined' && !isShopOpen) { 
                 document.getElementById('shop-prompt').style.display = 'block'; 
@@ -949,33 +1058,26 @@ isInventoryOpen = false;
 
             if (typeof isShooting !== 'undefined' && isShooting && controls.isLocked && myHp > 0) {
                 let wId = quickbarSlots[activeQuickSlot] || 'default';
-                if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon(); // Eksekusi tembakan memberondong (Auto)
+                if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
             }
-            // ==========================================================
 
             Object.values(otherPlayers).forEach(p => { 
                 if(p.visible) {
                     p.userData.labelMesh.lookAt(camera.position); 
                     if (!p.userData.lastPos) p.userData.lastPos = p.position.clone();
                     let distMoved = p.position.distanceTo(p.userData.lastPos);
-                    
                     if (distMoved > 0.02) {
                         p.userData.walkTime = (p.userData.walkTime || 0) + 15 * delta;
                         let swing = Math.sin(p.userData.walkTime) * 0.8;
-                        p.userData.armL.rotation.x = swing; 
                         p.userData.legL.rotation.x = -swing; p.userData.legR.rotation.x = swing;
                     } else {
-                        p.userData.armL.rotation.x = 0; 
                         p.userData.legL.rotation.x = 0; p.userData.legR.rotation.x = 0;
                     }
                     p.userData.lastPos.copy(p.position);
                 }
             });
 
-            // [BAGIAN C] Healthbar api unggun raksasa selalu menghadap kamera
-            if (typeof cfMesh !== 'undefined' && cfMesh) {
-                cfMesh.lookAt(camera.position);
-            }
+            if (typeof cfMesh !== 'undefined' && cfMesh) { cfMesh.lookAt(camera.position); }
             
             prevTime = time; renderer.render(scene, camera);
         }
