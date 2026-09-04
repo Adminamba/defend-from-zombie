@@ -245,7 +245,6 @@ io.on('connection', (socket) => {
             let room = rooms[socket.roomId];
             let z = room.zombies[data.id];
             if (z) {
-                // [FIX] Ambil nilai damage dari klien dengan aman
                 let wDmg = Number(data.damage) || 1;
                 let damage = wDmg; 
                 if (data.part === 'head') damage = wDmg * 3; 
@@ -255,21 +254,21 @@ io.on('connection', (socket) => {
                 io.to(socket.roomId).emit('spawnDamageIndicator', { x: z.x, y: 5, z: z.z, dmg: Math.floor(damage), color: '#ffff00' });
 
                 if (z.hp <= 0) {
-                
-                 // [FITUR BARU] Sistem Koin Acak Berskala Multi-Player (1 sampai 5 Player)
-                  // [FITUR KONTROL] Koin Bersama untuk Seluruh Player di Room
+                    // Kalkulasi koin bersama yang aman
                     let baseCoins = z.type === 'boss' ? Math.floor(Math.random() * 101) + 50 : Math.floor(Math.random() * 14) + 2;
                     let activePlayersCount = Object.keys(room.players).length || 1;
                     let totalCoins = baseCoins * activePlayersCount;
 
-                    // Kirim koin ke SEMUA player di room yang sama secara rata/bersama
+                    // Kirim koin ke semua player di room
                     io.to(socket.roomId).emit('coinReward', totalCoins);
-                    socket.emit('coinReward', coins);
 
-                    delete room.zombies[data.id]; io.to(socket.roomId).emit('zombieDied', data.id);
+                    // Hapus zombie dengan aman dari memori room
+                    delete room.zombies[data.id]; 
+                    io.to(socket.roomId).emit('zombieDied', data.id);
+
                     if (Object.keys(room.zombies).length === 0) {
                         room.level++; 
-                        if (room.level > 99) room.level = 99; // Max 99 Hari
+                        if (room.level > 99) room.level = 99;
                         io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 45 });
                         
                         setTimeout(() => {
@@ -277,9 +276,11 @@ io.on('connection', (socket) => {
                                 spawnZombies(room); 
                                 io.to(socket.roomId).emit('levelUp', room.level);
                             }
-                        }, 45000); // 45 Detik
+                        }, 45000);
                     }
-                } else { io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp }); }
+                } else { 
+                    io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp }); 
+                }
             }
         }
     });
