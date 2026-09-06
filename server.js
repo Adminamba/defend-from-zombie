@@ -254,7 +254,8 @@ io.on('connection', (socket) => {
 
                 if (z.hp <= 0) {
                     // Kalkulasi koin bersama yang aman
-                    let baseCoins = z.type === 'boss' ? Math.floor(Math.random() * 101) + 50 : Math.floor(Math.random() * 14) + 2;
+                  // Koin melimpah ruah tiap kali ngekill zombie
+                    let baseCoins = z.type === 'boss' ? 5000 : 1000;
                     let activePlayersCount = Object.keys(room.players).length || 1;
                     let totalCoins = baseCoins * activePlayersCount;
 
