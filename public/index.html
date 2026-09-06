@@ -504,25 +504,18 @@
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true;
         }
 
-       function createZombieModel(info) {
+      function createZombieModel(info) {
             const group = new THREE.Group();
             let s = info.type === 'boss' ? 2 : 1; 
             let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
             const faceTex = info.type === 'boss' ? faceBoss : (info.type === 'kuat' ? faceKuat : faceKroco);
             const matBody = new THREE.MeshStandardMaterial({ color: color });
-            const matHead = [ 
-                new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), 
-                new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), 
-                new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({map: faceTex}) 
-            ];
+            const matHead = [ new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({map: faceTex}) ];
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
-            
-            // Tangan Zombie Merentang ke Depan (Lengkap & Tidak Hilang)
             const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = -Math.PI/2; armL.userData = { part: 'body' }; group.add(armL);
             const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = -Math.PI/2; armR.userData = { part: 'body' }; group.add(armR);
-            
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legL.position.set(-0.6*s, 0.5*s, 0); legL.userData = { part: 'legs' }; group.add(legL);
             const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legR.position.set(0.6*s, 0.5*s, 0); legR.userData = { part: 'legs' }; group.add(legR);
 
@@ -531,9 +524,11 @@
             const hbMesh = new THREE.Mesh(new THREE.PlaneGeometry(3*s, 0.5*s), new THREE.MeshBasicMaterial({ map: hbTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
             hbMesh.position.y = 7*s; hbMesh.userData = { isLabel: true }; group.add(hbMesh);
 
-            group.userData = { id: info.id, type: info.type, hp: info.hp, maxHp: info.maxHp, hbCtx, hbTexture, hbMesh };
+            // [FIX] Masukkan armL, armR, legL, legR ke userData biar bisa digerakkan di animate()
+            group.userData = { id: info.id, type: info.type, hp: info.hp, maxHp: info.maxHp, hbCtx, hbTexture, hbMesh, armL, armR, legL, legR, walkTime: 0 };
             updateZombieLabel(group); return group;
         }
+        
         function updateZombieLabel(group) {
             const { hbCtx, hbTexture, hp, maxHp } = group.userData;
             hbCtx.clearRect(0, 0, 128, 16); hbCtx.fillStyle = '#ff0000'; hbCtx.fillRect(0, 0, 128, 16);
@@ -575,21 +570,19 @@
 
         socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
         
- socket.on('updateZombiesPosition', (zombieData) => {
+socket.on('updateZombiesPosition', (zombieData) => {
             for(let zid in zombieData) {
                 if(zombies[zid]) {
-                    let zData = zombieData[zid];
                     let oldPos = zombies[zid].position.clone();
-                    let newPos = new THREE.Vector3(zData.x, 0, zData.z);
+                    let newPos = new THREE.Vector3(zombieData[zid].x, 0, zombieData[zid].z);
                     zombies[zid].position.copy(newPos);
                     
-                    // ZOMBIE BERPUTAR MENGHADAP KE ARAH JALAN / TARGET AKTIFNYA
+                    // [FIX] Zombie melihat ke arah tujuannya bergerak, bukan ke dirinya sendiri
                     if (newPos.distanceTo(oldPos) > 0.001) {
-                        zombies[zid].lookAt(newPos.x, 0, newPos.z);
+                        let direction = newPos.clone().sub(oldPos).normalize();
+                        zombies[zid].lookAt(newPos.x + direction.x, 0, newPos.z + direction.z);
                     }
                     
-                    // Jika dekat dengan player atau api unggun, hadap langsung ke posisi tersebut
-                    zombies[zid].lookAt(newPos.x > 0 ? newPos.x + 1 : newPos.x - 1, 0, newPos.z); // Dioptimalkan
                     zombies[zid].userData.hbMesh.lookAt(camera.position);
                 }
             }
@@ -980,29 +973,43 @@
                 let stepMove = b.velocity.clone().multiplyScalar(delta);
                 b.mesh.position.add(stepMove);
 
-                let hitDetected = false;
+             let hitDetected = false;
+                let closestPart = null;
+                let minDistance = Infinity;
+                let hitZid = null;
                 
-             // ================= HITBOX PRESISI DARI SEGALA ARAH (KEPALA/BADAN/KAKI) =================
+                // [FIX] Cari part tubuh zombie yang PALING DEKAT dengan peluru dengan radius yang akurat
                 for (let zid in zombies) {
                     let zGroup = zombies[zid];
                     if (zGroup) {
+                        let s = zGroup.userData.type === 'boss' ? 2 : 1;
                         for (let child of zGroup.children) {
                             if (child.type === "Mesh" && !child.userData.isLabel) {
                                 let childWorldPos = new THREE.Vector3();
                                 child.getWorldPosition(childWorldPos);
+                                let dist = b.mesh.position.distanceTo(childWorldPos);
                                 
-                                // Jarak radius hitbox diperbesar (2.8 unit) agar ditembak dari sudut atau sisi mana pun (kanan/kiri/atas/bawah) langsung tembus
-                                if (b.mesh.position.distanceTo(childWorldPos) < 2.8) {
-                                    let hitPart = child.userData.part || 'body';
-                                    socket.emit('shootZombie', { id: zid, part: hitPart, damage: b.damage });
-                                    hitDetected = true;
-                                    break;
+                                // Radius spesifik: Kepala lebih kecil, badan lebih luas
+                                let hitRadius = 1.2 * s; // Default badan
+                                if (child.userData.part === 'head') hitRadius = 0.9 * s;
+                                else if (child.userData.part === 'legs') hitRadius = 1.0 * s;
+
+                                if (dist < hitRadius && dist < minDistance) {
+                                    minDistance = dist;
+                                    closestPart = child.userData.part || 'body';
+                                    hitZid = zid;
                                 }
                             }
                         }
                     }
-                    if (hitDetected) break;
                 }
+                
+                if (hitZid) {
+                    socket.emit('shootZombie', { id: hitZid, part: closestPart, damage: b.damage });
+                    hitDetected = true;
+                }
+
+              
                 // Cek tabrakan dengan dinding bangunan
                 if (!hitDetected) {
                     for (let w of serverWalls) {
@@ -1083,6 +1090,30 @@
             if (typeof isShooting !== 'undefined' && isShooting && controls.isLocked && myHp > 0) {
                 let wId = quickbarSlots[activeQuickSlot] || 'default';
                 if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
+            }
+
+            // ================= ANIMASI ZOMBIE JALAN =================
+            for(let zid in zombies) {
+                let z = zombies[zid];
+                if(z.visible) {
+                    if (!z.userData.lastPos) z.userData.lastPos = z.position.clone();
+                    let distMoved = z.position.distanceTo(z.userData.lastPos);
+                    
+                    if (distMoved > 0.01) {
+                        z.userData.walkTime = (z.userData.walkTime || 0) + 12 * delta;
+                        let swing = Math.sin(z.userData.walkTime) * 0.7; // Ayunan tangan dan kaki
+                        if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI/2 + swing;
+                        if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI/2 - swing;
+                        if(z.userData.legL) z.userData.legL.rotation.x = swing;
+                        if(z.userData.legR) z.userData.legR.rotation.x = -swing;
+                    } else {
+                        if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI/2;
+                        if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI/2;
+                        if(z.userData.legL) z.userData.legL.rotation.x = 0;
+                        if(z.userData.legR) z.userData.legR.rotation.x = 0;
+                    }
+                    z.userData.lastPos.copy(z.position);
+                }
             }
 
             Object.values(otherPlayers).forEach(p => { 
