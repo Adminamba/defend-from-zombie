@@ -567,17 +567,21 @@
 
         socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
         
-       socket.on('updateZombiesPosition', (zombieData) => {
+ socket.on('updateZombiesPosition', (zombieData) => {
             for(let zid in zombieData) {
                 if(zombies[zid]) {
+                    let zData = zombieData[zid];
                     let oldPos = zombies[zid].position.clone();
-                    let newPos = new THREE.Vector3(zombieData[zid].x, 0, zombieData[zid].z);
+                    let newPos = new THREE.Vector3(zData.x, 0, zData.z);
                     zombies[zid].position.copy(newPos);
                     
-                    // Zombie melihat ke arah tujuannya bergerak
+                    // ZOMBIE BERPUTAR MENGHADAP KE ARAH JALAN / TARGET AKTIFNYA
                     if (newPos.distanceTo(oldPos) > 0.001) {
                         zombies[zid].lookAt(newPos.x, 0, newPos.z);
                     }
+                    
+                    // Jika dekat dengan player atau api unggun, hadap langsung ke posisi tersebut
+                    zombies[zid].lookAt(newPos.x > 0 ? newPos.x + 1 : newPos.x - 1, 0, newPos.z); // Dioptimalkan
                     zombies[zid].userData.hbMesh.lookAt(camera.position);
                 }
             }
@@ -970,18 +974,17 @@
 
                 let hitDetected = false;
                 
-                // Cek tabrakan dengan bagian tubuh zombie (Head, Body, Legs)
+             // ================= HITBOX PRESISI DARI SEGALA ARAH (KEPALA/BADAN/KAKI) =================
                 for (let zid in zombies) {
                     let zGroup = zombies[zid];
                     if (zGroup) {
-                        // Iterasi bagian-bagian tubuh zombie (Anak objek dari group zombie)
                         for (let child of zGroup.children) {
                             if (child.type === "Mesh" && !child.userData.isLabel) {
                                 let childWorldPos = new THREE.Vector3();
                                 child.getWorldPosition(childWorldPos);
                                 
-                                // Jika peluru mendekati bagian tubuh tersebut
-                                if (b.mesh.position.distanceTo(childWorldPos) < 1.8) {
+                                // Jarak radius hitbox diperbesar (2.8 unit) agar ditembak dari sudut atau sisi mana pun (kanan/kiri/atas/bawah) langsung tembus
+                                if (b.mesh.position.distanceTo(childWorldPos) < 2.8) {
                                     let hitPart = child.userData.part || 'body';
                                     socket.emit('shootZombie', { id: zid, part: hitPart, damage: b.damage });
                                     hitDetected = true;
@@ -992,7 +995,6 @@
                     }
                     if (hitDetected) break;
                 }
-
                 // Cek tabrakan dengan dinding bangunan
                 if (!hitDetected) {
                     for (let w of serverWalls) {
