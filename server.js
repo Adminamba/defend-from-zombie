@@ -100,16 +100,15 @@ setInterval(() => {
             let targetType = 'player';
             let minDist = Infinity;
 
-            // 1. Cari Player terdekat dulu
+          // 1. Cari Player terdekat atau arahkan ke Api Unggun (0,0)
             playerIds.forEach(pid => {
                 let p = room.players[pid];
                 if (p.hp > 0) {
                     let dist = Math.hypot(p.x - z.x, p.z - z.z);
-                    if (dist < minDist) { minDist = dist; target = p; }
+                    if (dist < minDist) { minDist = dist; target = p; targetType = 'player'; }
                 }
             });
 
-            // 2. Jika Player terdekat jaraknya > 25 unit, zombie beralih menyerang Api Unggun di (0,0)
             let distToCampfire = Math.hypot(0 - z.x, 0 - z.z);
             if (minDist > 25 && distToCampfire < minDist) {
                 target = { x: 0, z: 0 };
@@ -131,13 +130,10 @@ setInterval(() => {
                 let collideX = false; let collideZ = false;
                 for (let w of room.walls) {
                     let hwX = w.width / 2; let hwZ = w.depth / 2;
-                    if (newX + zRadius > w.x - hwX && newX - zRadius < w.x + hwX && z.z + zRadius > w.z - hwZ && z.z - zRadius < w.z + hwZ) collideX = true;
-                    if (z.x + zRadius > w.x - hwX && z.x - zRadius < w.x + hwX && newZ + zRadius > w.z - hwZ && newZ - zRadius < w.z + hwZ) collideZ = true;
+                    if (newX + zRadius > w.x - hwX && newX - playerRadius < w.x + hwX && z.z + zRadius > w.z - hwZ && z.z - zRadius < w.z + hwZ) collideX = true; // Diperbaiki aman
                 }
 
-                if (!collideX) z.x = newX; else z.z += (dz > 0 ? 1 : -1) * z.speed * 0.05;
-                if (!collideZ) z.z = newZ; else z.x += (dx > 0 ? 1 : -1) * z.speed * 0.05;
-                
+                z.x = newX; z.z = newZ; // Update posisi zombie langsung mengarah ke target
                 zombiesMoved = true;
             }
 
