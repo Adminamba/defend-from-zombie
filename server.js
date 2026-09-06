@@ -116,7 +116,7 @@ setInterval(() => {
                 minDist = distToCampfire;
             }
 
-            let attackRange = targetType === 'campfire' ? 4 : (z.type === 'boss' ? 4 : 2.5);
+         let attackRange = targetType === 'campfire' ? 4 : (z.type === 'boss' ? 4 : 2.5);
 
             if (target && minDist > attackRange) {
                 let dx = target.x - z.x; let dz = target.z - z.z;
@@ -130,10 +130,13 @@ setInterval(() => {
                 let collideX = false; let collideZ = false;
                 for (let w of room.walls) {
                     let hwX = w.width / 2; let hwZ = w.depth / 2;
-                    if (newX + zRadius > w.x - hwX && newX - playerRadius < w.x + hwX && z.z + zRadius > w.z - hwZ && z.z - zRadius < w.z + hwZ) collideX = true; // Diperbaiki aman
+                    if (newX + zRadius > w.x - hwX && newX - zRadius < w.x + hwX && z.z + zRadius > w.z - hwZ && z.z - zRadius < w.z + hwZ) collideX = true;
+                    if (z.x + zRadius > w.x - hwX && z.x - zRadius < w.x + hwX && newZ + zRadius > w.z - hwZ && newZ - zRadius < w.z + hwZ) collideZ = true;
                 }
 
-                z.x = newX; z.z = newZ; // Update posisi zombie langsung mengarah ke target
+                if (!collideX) z.x = newX; else z.z += (dz > 0 ? 1 : -1) * z.speed * 0.05;
+                if (!collideZ) z.z = newZ; else z.x += (dx > 0 ? 1 : -1) * z.speed * 0.05;
+                
                 zombiesMoved = true;
             }
 
