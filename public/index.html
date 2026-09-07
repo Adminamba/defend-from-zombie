@@ -262,7 +262,6 @@
         renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
         const controls = new PointerLockControls(camera, document.body); scene.add(controls.getObject());
 
-        // ================= SISTEM EKONOMI GANDA & SENJATA =================
         let teamCoin = 0; 
         let myXp = 0; 
         let myLevel = 1;
@@ -290,7 +289,6 @@
         };
         let quickbarSlots = ['default', null, null, null];
 
-        // --- MODEL 3D SENJATA ---
         const gunGroup = new THREE.Group();
         let currentGunMeshName = 'default';
         const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
@@ -437,7 +435,8 @@
         }
         setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
         fetchRooms();
-window.joinRoom = function(roomId, roomName) {
+
+        window.joinRoom = function(roomId, roomName) {
             const name = document.getElementById('username-input').value.trim(); 
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -455,8 +454,7 @@ window.joinRoom = function(roomId, roomName) {
             if(lobbyTitle) lobbyTitle.innerText = "ROOM: " + roomName;
         };
         
-        // PASTIKAN TOMBOL INI AKTIF DAN MENANGKAP KLIK DENGAN BENAR
-        document.getElementById('btn-create-room').onclick = () => {
+        document.getElementById('btn-create-room').addEventListener('click', () => {
             const name = document.getElementById('username-input').value.trim();
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -467,18 +465,6 @@ window.joinRoom = function(roomId, roomName) {
             
             let uniqueRoomId = 'room_' + Date.now();
             joinRoom(uniqueRoomId, rName);
-        };
-        
-        document.getElementById('btn-create-room').addEventListener('click', () => {
-            const name = document.getElementById('username-input').value.trim();
-            if(!name) {
-                alert("Isi username dulu bro!");
-                return;
-            }
-            let rName = document.getElementById('room-name-input').value.trim();
-            if(!rName) rName = "Room " + Math.floor(Math.random()*1000);
-            
-            joinRoom('room_' + Date.now(), rName);
         });
 
         socket.on('roomError', (msg) => { alert(msg); location.reload(); });
@@ -974,7 +960,9 @@ window.joinRoom = function(roomId, roomName) {
             if (isSpectating && e.buttons === 2) {
                 specAngleX -= e.movementX * 0.005; specAngleY -= e.movementY * 0.005; specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
             }
-window.addEventListener('mousedown', (e) => {
+        });
+
+        window.addEventListener('mousedown', (e) => {
             if (isInventoryOpen) {
                 const modal = document.getElementById('inventory-modal');
                 if (modal && !modal.contains(e.target)) {
@@ -998,7 +986,6 @@ window.addEventListener('mousedown', (e) => {
             const isLoginVisible = loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none';
             const isLobbyVisible = lobbyOverlay && window.getComputedStyle(lobbyOverlay).display !== 'none';
 
-            // Kalau lagi di menu, abaikan klik game supaya tombol bisa diklik
             if (isLoginVisible || isLobbyVisible) return;
 
             if (!controls.isLocked && myHp > 0 && !isSpectating) {
@@ -1011,7 +998,7 @@ window.addEventListener('mousedown', (e) => {
                 fireWeapon();
             }
         });
-        
+
         window.addEventListener('mouseup', (e) => { if (e.button === 0) isShooting = false; });
 
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
