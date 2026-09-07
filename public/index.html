@@ -1089,29 +1089,32 @@
                 let closestDistance = Infinity;
                 let hitDataToEmit = null;
                 
-                for (let zid in zombies) {
+              for (let zid in zombies) {
                     let zGroup = zombies[zid];
                     if (zGroup && zGroup.visible && zGroup.children) {
-                        for (let child of zGroup.children) {
-                            if (child && child.type === "Mesh" && !child.userData.isLabel) {
-                                try {
-                                    let box = new THREE.Box3().setFromObject(child);
-                                    let intersectionPoint = new THREE.Vector3();
-                                    
-                                    if (box.intersectRay(raySegment, intersectionPoint)) {
-                                        let dist = b.previousPosition.distanceTo(intersectionPoint);
-                                        if (dist <= maxDist && dist < closestDistance) {
-                                            closestDistance = dist;
-                                            hitDataToEmit = {
-                                                id: zid,
-                                                part: child.userData.part || 'body',
-                                                damage: b.damage,
-                                                hitPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z }
-                                            };
-                                            hitDetected = true;
-                                        }
-                                    }
-                                } catch (err) {}
+                        // Kumpulkan semua mesh bagian tubuh zombie untuk di-raycast
+                        let zombieMeshes = [];
+                        zGroup.children.forEach(c => {
+                            if (c && c.type === "Mesh" && !c.userData.isLabel) zombieMeshes.push(c);
+                        });
+
+                        if (zombieMeshes.length > 0) {
+                            let raycasterZombie = new THREE.Raycaster(b.previousPosition, b.velocity.clone().normalize());
+                            let zombieIntersects = raycasterZombie.intersectObjects(zombieMeshes);
+                            
+                            if (zombieIntersects.length > 0) {
+                                let hit = zombieIntersects[0];
+                                let dist = b.previousPosition.distanceTo(hit.point);
+                                if (dist <= maxDist && dist < closestDistance) {
+                                    closestDistance = dist;
+                                    hitDataToEmit = {
+                                        id: zid,
+                                        part: hit.object.userData.part || 'body',
+                                        damage: b.damage,
+                                        hitPoint: { x: hit.point.x, y: hit.point.y, z: hit.point.z }
+                                    };
+                                    hitDetected = true;
+                                }
                             }
                         }
                     }
