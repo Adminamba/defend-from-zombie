@@ -1000,15 +1000,16 @@ window.addEventListener('mousedown', (e) => {
             const isLoginVisible = loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none';
             const isLobbyVisible = lobbyOverlay && window.getComputedStyle(lobbyOverlay).display !== 'none';
 
-            if (isLoginVisible || isLobbyVisible) return;
+            // JANGAN LOCK KURSOR KALO LAGI DI MENU, TAPI JANGAN BLOK KLIK TOMBOLNYA
+            if (isLoginVisible || isLobbyVisible) {
+                return; 
+            }
 
-            // Kalau kursor belum ter-lock tapi kita di dalam game, lock lagi otomatis saat klik kiri
             if (!controls.isLocked && myHp > 0 && !isSpectating) {
                 controls.lock();
                 return;
             }
 
-            // Kalau sudah ter-lock dan klik kiri, lakukan tembakan
             if (controls.isLocked && myHp > 0 && e.button === 0) {
                 isShooting = true; 
                 fireWeapon();
