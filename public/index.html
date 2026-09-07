@@ -5,7 +5,7 @@
     <title>Zombie Survival 99 Days - Phase 1</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
-       /* --- EFEK FPS: CROSSHAIR DINAMIS --- */
+        /* --- EFEK FPS: CROSSHAIR DINAMIS --- */
         #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1000; transition: all 0.1s ease-out; display: none; }
         #crosshair .line { position: absolute; background-color: #00ff00; transition: all 0.1s; }
         #crosshair .line.vertical { width: 2px; height: 10px; left: -1px; }
@@ -116,8 +116,7 @@
 </head>
 <body>
     <div id="damage-overlay"></div>
-    
-  <div id="crosshair">
+    <div id="crosshair">
         <div class="line vertical top"></div>
         <div class="line vertical bottom"></div>
         <div class="line horizontal left"></div>
@@ -429,7 +428,7 @@
                     let btn = document.createElement('button');
                     btn.innerText = "Gabung";
                     btn.style.cssText = "width: auto; padding: 5px 10px; margin:0;";
-                    btn.onclick = () => joinRoom(r.id, r.name); // Binding fungsi yang aman
+                    btn.onclick = () => joinRoom(r.id, r.name);
                     
                     div.appendChild(btn);
                     list.appendChild(div);
@@ -439,7 +438,7 @@
         setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
         fetchRooms();
 
-      window.joinRoom = function(roomId, roomName) {
+        window.joinRoom = function(roomId, roomName) {
             const name = document.getElementById('username-input').value.trim(); 
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -450,16 +449,14 @@
             
             socket.emit('joinRoom', { username: name, roomId: roomId, roomName: roomName });
             
-            // Sembunyikan login, tampilkan menu lobby room
             document.getElementById('login-overlay').style.display = 'none'; 
             document.getElementById('lobby-room-menu').style.display = 'flex';
             
-            // Update judul lobby
             const lobbyTitle = document.getElementById('lobby-title');
             if(lobbyTitle) lobbyTitle.innerText = "ROOM: " + roomName;
         };
         
-            document.getElementById('btn-create-room').addEventListener('click', () => {
+        document.getElementById('btn-create-room').addEventListener('click', () => {
             const name = document.getElementById('username-input').value.trim();
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -602,14 +599,12 @@
             }
         });
 
-      socket.on('otherPlayerAction', (data) => {
+        socket.on('otherPlayerAction', (data) => {
             if (otherPlayers[data.id] && otherPlayers[data.id].userData.hp > 0) {
                 let pArm = otherPlayers[data.id].userData.armR;
                 if (data.action === 'reload_start') {
-                    // Animasi player lain menurunkan tangan kanannya (senjata)
                     pArm.rotation.x = -Math.PI / 4; 
                 } else if (data.action === 'reload_finish') {
-                    // Kembalikan ke posisi menembak
                     pArm.rotation.x = -Math.PI / 2; 
                 }
             }
@@ -838,9 +833,7 @@
         }
 
         let bulletsInFlight = [];
-
- 
-let reloadTimeoutId = null; // Tambahkan timeout pengaman
+        let reloadTimeoutId = null;
 
         function reloadWeapon() {
             if (isReloading) return;
@@ -857,7 +850,6 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             let reloadStartTime = performance.now();
             let duration = wInfo.reloadTime;
 
-            // Failsafe timeout: Jika dalam durasi reload + 500ms state belum ke-reset, paksa reset otomatis
             if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
             reloadTimeoutId = setTimeout(() => {
                 if (isReloading) {
@@ -868,13 +860,11 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             }, duration + 500);
 
             function animateReload(now) {
-                // Jika player sudah tidak reload atau ganti senjata di tengah jalan, batalkan animasi loop ini
                 if (!isReloading) return;
 
                 let elapsed = now - reloadStartTime;
                 let progress = Math.min(1, elapsed / duration);
 
-                // Animasi senjata turun-naik saat reload
                 if (progress < 0.5) {
                     gunGroup.position.y = -1.4 - (progress * 1.6);
                 } else {
@@ -898,7 +888,8 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
 
             requestAnimationFrame(animateReload);
         }
-      function fireWeapon() {
+
+        function fireWeapon() {
             if (isReloading) return;
             let now = performance.now();
             let wId = quickbarSlots[activeQuickSlot] || 'default';
@@ -924,7 +915,6 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
             gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
 
-            // Crosshair recoil & camera shake
             const crosshair = document.getElementById('crosshair');
             if(crosshair) {
                 crosshair.classList.add('recoil');
@@ -964,7 +954,6 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             }
         }
 
-        const raycaster = new THREE.Raycaster(); let lasers = [];
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         let specAngleX = 0; let specAngleY = 0;
@@ -974,7 +963,7 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             }
         });
 
-     window.addEventListener('mousedown', (e) => {
+        window.addEventListener('mousedown', (e) => {
             if (isInventoryOpen) {
                 const modal = document.getElementById('inventory-modal');
                 if (modal && !modal.contains(e.target)) {
@@ -993,8 +982,7 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
                 return;
             }
 
-            // --- PENGAMANAN KONTROL: Auto Lock jika lepas saat klik ---
-            if (!controls.isLocked && myHp > 0 && !isSpectating && document.getElementById('login-overlay').style.display !== 'flex') {
+            if (!controls.isLocked && myHp > 0 && !isSpectating && document.getElementById('login-overlay').style.display !== 'flex' && document.getElementById('lobby-room-menu').style.display !== 'flex') {
                 controls.lock();
                 return;
             }
@@ -1035,8 +1023,7 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
                 return;
             }
 
-         if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
-                // Batalkan paksa reload aktif jika ganti senjata
+            if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
                 isReloading = false;
                 if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
                 gunGroup.position.y = -1.4;
@@ -1078,83 +1065,79 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
                 if (d.time > 1) { scene.remove(d.mesh); damageIndicators.splice(i, 1); }
             }
 
-            for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
-            
-    for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
-            let b = bulletsInFlight[i];
-            if (!b || !b.mesh) continue;
-            
-            b.life -= delta;
-            
-            b.previousPosition.copy(b.mesh.position);
-            let stepMove = b.velocity.clone().multiplyScalar(delta);
-            b.mesh.position.add(stepMove);
+            for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
+                let b = bulletsInFlight[i];
+                if (!b || !b.mesh) continue;
+                
+                b.life -= delta;
+                
+                b.previousPosition.copy(b.mesh.position);
+                let stepMove = b.velocity.clone().multiplyScalar(delta);
+                b.mesh.position.add(stepMove);
 
-            let raySegment = new THREE.Ray(b.previousPosition, b.velocity.clone().normalize());
-            let maxDist = b.previousPosition.distanceTo(b.mesh.position);
+                let raySegment = new THREE.Ray(b.previousPosition, b.velocity.clone().normalize());
+                let maxDist = b.previousPosition.distanceTo(b.mesh.position);
 
-            let hitDetected = false;
-            let closestDistance = Infinity;
-            let hitDataToEmit = null;
-            
-            for (let zid in zombies) {
-                let zGroup = zombies[zid];
-                if (zGroup && zGroup.visible && zGroup.children) {
-                    for (let child of zGroup.children) {
-                        if (child && child.type === "Mesh" && !child.userData.isLabel) {
-                            try {
-                                let box = new THREE.Box3().setFromObject(child);
-                                let intersectionPoint = new THREE.Vector3();
-                                
-                                if (box.intersectRay(raySegment, intersectionPoint)) {
-                                    let dist = b.previousPosition.distanceTo(intersectionPoint);
-                                    if (dist <= maxDist && dist < closestDistance) {
-                                        closestDistance = dist;
-                                        hitDataToEmit = {
-                                            id: zid,
-                                            part: child.userData.part || 'body',
-                                            damage: b.damage,
-                                            hitPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z }
-                                        };
-                                        hitDetected = true;
+                let hitDetected = false;
+                let closestDistance = Infinity;
+                let hitDataToEmit = null;
+                
+                for (let zid in zombies) {
+                    let zGroup = zombies[zid];
+                    if (zGroup && zGroup.visible && zGroup.children) {
+                        for (let child of zGroup.children) {
+                            if (child && child.type === "Mesh" && !child.userData.isLabel) {
+                                try {
+                                    let box = new THREE.Box3().setFromObject(child);
+                                    let intersectionPoint = new THREE.Vector3();
+                                    
+                                    if (box.intersectRay(raySegment, intersectionPoint)) {
+                                        let dist = b.previousPosition.distanceTo(intersectionPoint);
+                                        if (dist <= maxDist && dist < closestDistance) {
+                                            closestDistance = dist;
+                                            hitDataToEmit = {
+                                                id: zid,
+                                                part: child.userData.part || 'body',
+                                                damage: b.damage,
+                                                hitPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z }
+                                            };
+                                            hitDetected = true;
+                                        }
                                     }
-                                }
-                            } catch (err) {
-                                // Mencegah crash total frame jika mesh belum termuat sempurna
+                                } catch (err) {}
                             }
                         }
                     }
                 }
-            }
-            
-            if (!hitDetected && typeof serverWalls !== 'undefined') {
-                for (let w of serverWalls) {
-                    let hwX = w.width / 2; let hwZ = w.depth / 2;
-                    let wallBox = new THREE.Box3(
-                        new THREE.Vector3(w.x - hwX, 0, w.z - hwZ),
-                        new THREE.Vector3(w.x + hwX, w.height, w.z + hwZ)
-                    );
-                    let wallIntersect = new THREE.Vector3();
-                    if (wallBox.intersectRay(raySegment, wallIntersect)) {
-                        let dist = b.previousPosition.distanceTo(wallIntersect);
-                        if (dist <= maxDist) {
-                            hitDetected = true;
-                            break;
+                
+                if (!hitDetected && typeof serverWalls !== 'undefined') {
+                    for (let w of serverWalls) {
+                        let hwX = w.width / 2; let hwZ = w.depth / 2;
+                        let wallBox = new THREE.Box3(
+                            new THREE.Vector3(w.x - hwX, 0, w.z - hwZ),
+                            new THREE.Vector3(w.x + hwX, w.height, w.z + hwZ)
+                        );
+                        let wallIntersect = new THREE.Vector3();
+                        if (wallBox.intersectRay(raySegment, wallIntersect)) {
+                            let dist = b.previousPosition.distanceTo(wallIntersect);
+                            if (dist <= maxDist) {
+                                hitDetected = true;
+                                break;
+                            }
                         }
                     }
                 }
-            }
 
-            if (hitDataToEmit) {
-                socket.emit('shootZombie', hitDataToEmit);
-                hitDetected = true;
-            }
+                if (hitDataToEmit) {
+                    socket.emit('shootZombie', hitDataToEmit);
+                    hitDetected = true;
+                }
 
-            if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
-                scene.remove(b.mesh);
-                bulletsInFlight.splice(i, 1);
+                if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
+                    scene.remove(b.mesh);
+                    bulletsInFlight.splice(i, 1);
+                }
             }
-        }
             
             for (let i = debris.length - 1; i >= 0; i--) {
                 let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
@@ -1189,19 +1172,15 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
                 if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta; if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
                 controls.moveRight(-velocity.x * delta); controls.moveForward(-velocity.z * delta);
 
-                // --- EFEK FPS: WEAPON SWAY (AYUNAN SENJATA SAAT JALAN) ---
                 if (isMoving && !isReloading) {
                     swayTime += 12 * delta;
-                    let swayAmt = isSprinting ? 0.08 : 0.04; // Goyang lebih kencang pas sprint
-                    // Posisi default gunGroup lu adalah x:1.4, y:-1.4
+                    let swayAmt = isSprinting ? 0.08 : 0.04;
                     gunGroup.position.x = 1.4 + (Math.sin(swayTime) * swayAmt);
                     gunGroup.position.y = -1.4 + (Math.abs(Math.cos(swayTime)) * swayAmt);
                 } else if (!isReloading) {
-                    // Balikin perlahan ke posisi tengah pas diam
                     gunGroup.position.x = THREE.MathUtils.lerp(gunGroup.position.x, 1.4, 0.1);
                     gunGroup.position.y = THREE.MathUtils.lerp(gunGroup.position.y, -1.4, 0.1);
                 }
-                // ---------------------------------------------------------
                 
                 let newX = camera.position.x; let newZ = camera.position.z; let collideX = false; let collideZ = false; let playerRadius = 1.5;
                 for (let w of serverWalls) {
