@@ -869,7 +869,7 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
 
             requestAnimationFrame(animateReload);
         }
-        function fireWeapon() {
+      function fireWeapon() {
             if (isReloading) return;
             let now = performance.now();
             let wId = quickbarSlots[activeQuickSlot] || 'default';
@@ -895,15 +895,14 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
             gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
 
-            // --- EFEK FPS: CROSSHAIR MELEBAR, RECOIL KAMERA, SCREEN SHAKE ---
+            // Crosshair recoil & camera shake
             const crosshair = document.getElementById('crosshair');
             if(crosshair) {
                 crosshair.classList.add('recoil');
                 setTimeout(() => crosshair.classList.remove('recoil'), 100);
             }
-            camera.rotation.x += (wInfo.baseDmg * 0.0015); // Recoil naik sesuai damage senjata
-            camera.rotation.y += (Math.random() - 0.5) * 0.01; // Kamera getar sedikit ke kiri/kanan
-            // ---------------------------------------------------------------
+            camera.rotation.x += (wInfo.baseDmg * 0.0015);
+            camera.rotation.y += (Math.random() - 0.5) * 0.01;
 
             for (let i = 0; i < wInfo.bullets; i++) {
                 let startPos = camera.position.clone();
@@ -928,6 +927,7 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
 
                 bulletsInFlight.push({
                     mesh: bulletMesh,
+                    previousPosition: startPos.clone(),
                     velocity: velocity,
                     damage: finalDmg,
                     life: 2.0 
@@ -1044,64 +1044,80 @@ let reloadTimeoutId = null; // Tambahkan timeout pengaman
 
             for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
             
-        for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
-                let b = bulletsInFlight[i];
-                b.life -= delta;
-                
-                let stepMove = b.velocity.clone().multiplyScalar(delta);
-                b.mesh.position.add(stepMove);
+      for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
+            let b = bulletsInFlight[i];
+            b.life -= delta;
+            
+            // Simpan posisi sebelum bergerak untuk swept collision (continuous raycast)
+            b.previousPosition.copy(b.mesh.position);
+            let stepMove = b.velocity.clone().multiplyScalar(delta);
+            b.mesh.position.add(stepMove);
 
-                let hitDetected = false;
-                let closestPart = null;
-                let minDistance = Infinity;
-                let hitZid = null;
-                
-                for (let zid in zombies) {
-                    let zGroup = zombies[zid];
-                    if (zGroup) {
-                        let s = zGroup.userData.type === 'boss' ? 2 : 1;
-                        
-                        // Periksa bounding box atau jarak raycasting ke setiap bagian tubuh zombie secara akurat
-                        for (let child of zGroup.children) {
-                            if (child.type === "Mesh" && !child.userData.isLabel) {
-                                let childWorldPos = new THREE.Vector3();
-                                child.getWorldPosition(childWorldPos);
-                                let dist = b.mesh.position.distanceTo(childWorldPos);
-                                
-                                // Perbesar sedikit radius toleransi hit (terutama kepala) agar tidak tembus
-                                let hitRadius = (child.userData.part === 'head' ? 1.8 : 2.2) * s;
-                                if (dist < hitRadius && dist < minDistance) {
-                                    minDistance = dist;
-                                    closestPart = child.userData.part || 'body';
-                                    hitZid = zid;
+            // Buat ray segment dari posisi sebelumnya ke posisi sekarang
+            let raySegment = new THREE.Ray(b.previousPosition, b.velocity.clone().normalize());
+            let maxDist = b.previousPosition.distanceTo(b.mesh.position);
+
+            let hitDetected = false;
+            let closestDistance = Infinity;
+            let hitDataToEmit = null;
+            
+            // Periksa benturan presisi Box3 untuk setiap bagian tubuh zombie
+            for (let zid in zombies) {
+                let zGroup = zombies[zid];
+                if (zGroup && zGroup.visible) {
+                    for (let child of zGroup.children) {
+                        if (child.type === "Mesh" && !child.userData.isLabel) {
+                            let box = new THREE.Box3().setFromObject(child);
+                            let intersectionPoint = new THREE.Vector3();
+                            
+                            // Deteksi persimpangan ray segment dengan Box3 asli bagian tubuh
+                            if (box.intersectRay(raySegment, intersectionPoint)) {
+                                let dist = b.previousPosition.distanceTo(intersectionPoint);
+                                if (dist <= maxDist && dist < closestDistance) {
+                                    closestDistance = dist;
+                                    hitDataToEmit = {
+                                        id: zid,
+                                        part: child.userData.part || 'body',
+                                        damage: b.damage,
+                                        hitPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z }
+                                    };
+                                    hitDetected = true;
                                 }
                             }
                         }
                     }
                 }
-                
-                if (hitZid) {
-                    socket.emit('shootZombie', { id: hitZid, part: closestPart, damage: b.damage });
-                    hitDetected = true;
-                }
-
-                if (!hitDetected) {
-                    for (let w of serverWalls) {
-                        let hwX = w.width / 2; let hwZ = w.depth / 2;
-                        if (b.mesh.position.x > w.x - hwX && b.mesh.position.x < w.x + hwX &&
-                            b.mesh.position.z > w.z - hwZ && b.mesh.position.z < w.z + hwZ &&
-                            b.mesh.position.y < w.height) {
+            }
+            
+            // Cek tabrakan dengan dinding/tembok bangunan
+            if (!hitDetected) {
+                for (let w of serverWalls) {
+                    let hwX = w.width / 2; let hwZ = w.depth / 2;
+                    let wallBox = new THREE.Box3(
+                        new THREE.Vector3(w.x - hwX, 0, w.z - hwZ),
+                        new THREE.Vector3(w.x + hwX, w.height, w.z + hwZ)
+                    );
+                    let wallIntersect = new THREE.Vector3();
+                    if (wallBox.intersectRay(raySegment, wallIntersect)) {
+                        let dist = b.previousPosition.distanceTo(wallIntersect);
+                        if (dist <= maxDist) {
                             hitDetected = true;
                             break;
                         }
                     }
                 }
-
-                if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
-                    scene.remove(b.mesh);
-                    bulletsInFlight.splice(i, 1);
-                }
             }
+
+            if (hitDataToEmit) {
+                socket.emit('shootZombie', hitDataToEmit);
+                hitDetected = true;
+            }
+
+            if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
+                scene.remove(b.mesh);
+                bulletsInFlight.splice(i, 1);
+            }
+        }
 
             for (let i = debris.length - 1; i >= 0; i--) {
                 let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
