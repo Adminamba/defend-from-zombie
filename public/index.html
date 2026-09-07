@@ -780,7 +780,9 @@
 
         let bulletsInFlight = [];
 
-     function reloadWeapon() {
+   let isReloading = false; // Pastikan variabel ini ada di atas
+
+        function reloadWeapon() {
             if (isReloading) return;
             let wId = quickbarSlots[activeQuickSlot] || 'default';
             let wInfo = WEAPONS[wId];
@@ -798,6 +800,7 @@
                 let elapsed = now - reloadStartTime;
                 let progress = Math.min(1, elapsed / duration);
 
+                // Animasi senjata turun-naik saat reload
                 if (progress < 0.5) {
                     gunGroup.position.y = -1.4 - (progress * 1.6);
                 } else {
@@ -811,7 +814,7 @@
                     let take = Math.min(needed, ammo.reserve);
                     ammo.current += take;
                     ammo.reserve -= take;
-                    isReloading = false;
+                    isReloading = false; // Selesai reload, bisa nembak lagi
                     gunGroup.position.y = -1.4;
                     updateUI();
                 }
