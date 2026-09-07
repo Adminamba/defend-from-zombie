@@ -438,7 +438,7 @@
         setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
         fetchRooms();
 
-        window.joinRoom = function(roomId, roomName) {
+      window.joinRoom = function(roomId, roomName) {
             const name = document.getElementById('username-input').value.trim(); 
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -455,6 +455,21 @@
             const lobbyTitle = document.getElementById('lobby-title');
             if(lobbyTitle) lobbyTitle.innerText = "ROOM: " + roomName;
         };
+        
+        // PERBAIKAN UTAMA DI SINI (Pastikan ID dan Nama Room terkirim bener ke server)
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            const name = document.getElementById('username-input').value.trim();
+            if(!name) {
+                alert("Isi username dulu bro!");
+                return;
+            }
+            let rName = document.getElementById('room-name-input').value.trim();
+            if(!rName) rName = "Room " + Math.floor(Math.random()*1000);
+            
+            // Buat ID unik berdasarkan waktu biar lgsung ke-generate di server
+            let uniqueRoomId = 'room_' + Date.now();
+            joinRoom(uniqueRoomId, rName);
+        });
         
         document.getElementById('btn-create-room').addEventListener('click', () => {
             const name = document.getElementById('username-input').value.trim();
