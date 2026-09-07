@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Zombie Survival 99 Days</title>
+    <title>Zombie Survival 99 Days - Phase 1</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); color: #00ff00; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 100; display: none; }
@@ -12,7 +12,6 @@
         #level-ui { position: absolute; top: 15px; right: 15px; color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; text-align: right;}
         #flashlight-info { position: absolute; bottom: 20px; left: 20px; color: #ffd700; font-size: 18px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
         
-        /* Amunisi & Reload UI */
         #ammo-display {
             position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
             color: #fff; font-size: 22px; font-weight: bold; z-index: 100; display: none;
@@ -37,7 +36,6 @@
         #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
         #wave-announcer { position: absolute; top: 25%; width: 100%; text-align: center; color: #ff5500; font-size: 32px; font-weight: bold; z-index: 10; text-shadow: 3px 3px 6px #000; display: none; pointer-events: none;}
 
-        /* STYLING INVENTORY GAYA MINECRAFT */
         #inventory-modal {
             position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(198, 198, 198, 0.95); border: 4px solid #373737; border-radius: 6px;
@@ -55,7 +53,6 @@
         }
         .inv-slot:hover { background: #9e9e9e; }
 
-        /* Hotbar 4 Kotak di Bawah Layar */
         #quickbar-container {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             display: flex; gap: 6px; z-index: 100; display: none; pointer-events: none;
@@ -71,14 +68,20 @@
         .quick-slot.active { border: 3px solid #ffff00; box-shadow: 0 0 10px #ffff00, inset 2px 2px 0px #fff, inset -2px -2px 0px #555; }
         .slot-num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: #111; font-weight: bold; }
 
-        /* STYLING SHOP & KOIN */
-        #coin-display {
+        /* EKONOMI GANDA UI */
+        #team-coin-display {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10;
             text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; border: 2px solid #FFD700;
         }
+        #xp-display {
+            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            color: #00ffff; font-size: 20px; font-weight: bold; z-index: 10;
+            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; border: 2px solid #00ffff;
+        }
+
         #shop-prompt {
-            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
             color: #fff; font-size: 20px; font-weight: bold; z-index: 10; display: none;
             text-shadow: 2px 2px 4px #000; background: rgba(0,255,0,0.4); padding: 10px 20px; border-radius: 8px;
         }
@@ -86,11 +89,12 @@
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(20, 30, 20, 0.95); border: 4px solid #00ff00; border-radius: 6px;
             padding: 20px; z-index: 500; display: none; text-align: left; color: white;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9); width: 550px; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9); width: 600px; max-height: 80vh; overflow-y: auto;
         }
         .shop-item { background: #222; border: 2px solid #555; padding: 12px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
         .shop-btn { background: #00ff00; color: #000; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
         .shop-btn:hover { background: #fff; }
+        .shop-btn.disabled { background: #555; cursor: not-allowed; color: #aaa; }
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
@@ -102,12 +106,16 @@
     <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
     
-    <div id="coin-display">💰 Koin: <span id="my-coins">0</span></div>
-    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata</div>
+    <!-- UI EKONOMI GANDA -->
+    <div id="team-coin-display">🪙 Team Coin: <span id="team-coin">0</span></div>
+    <div id="xp-display">⭐ Level <span id="my-level">1</span> (<span id="my-xp">0</span> XP)</div>
+    
+    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata Pribadi</div>
     <div id="ammo-display">Peluru: <span id="current-ammo">∞</span> / <span id="reserve-ammo">∞</span></div>
 
     <div id="shop-modal">
-        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA (Rumah Hijau)</h2>
+        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA PRIBADI</h2>
+        <p style="text-align:center; color:#ccc; font-size:14px;">Gunakan Personal XP (⭐) dan Syarat Level untuk membeli/upgrade senjata.</p>
         <div id="shop-items-container"></div>
         <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:0;">Tekan B lagi atau tutup layar untuk keluar.</p>
     </div>
@@ -115,7 +123,6 @@
     <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 14px; color: white;">(Klik Kiri ganti target | Tahan Klik Kanan + Geser Mouse putar kamera)</span></div>
     <div id="wave-announcer">HARI SELESAI!<br><span style="font-size: 20px; color: #fff;" id="wave-timer">Waktu Persiapan: 120s</span></div>
 
-    <!-- Hotbar 4 Kotak di Bawah Layar -->
     <div id="quickbar-container">
         <div class="quick-slot active" id="quick-0"><span class="slot-num">1</span>🔫</div>
         <div class="quick-slot" id="quick-1"><span class="slot-num">2</span>💊</div>
@@ -123,22 +130,13 @@
         <div class="quick-slot" id="quick-3"><span class="slot-num">4</span>🛡️</div>
     </div>
 
-    <!-- Inventory Modal Besar -->
     <div id="inventory-modal">
         <h3 style="margin: 0 0 5px 0; color: #222; font-size: 18px; font-weight: bold; text-align: left;">Inventory</h3>
         <div id="inventory-grid">
-            <div class="inv-slot">⛏️</div>
-            <div class="inv-slot">🪵</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">🪵</div>
-            <div class="inv-slot">🍎</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div>
+            <div class="inv-slot">⛏️</div><div class="inv-slot">🪵</div><div class="inv-slot">📦</div>
+            <div class="inv-slot">🪵</div><div class="inv-slot">🍎</div><div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div><div class="inv-slot">📦</div><div class="inv-slot">📦</div>
+            <div class="inv-slot">📦</div><div class="inv-slot">📦</div><div class="inv-slot">📦</div>
         </div>
     </div>
 
@@ -201,7 +199,6 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // Efek Suara Tembakan Berbeda Berdasarkan Tipe Senjata
         function playGunSound(type) {
             if (!audioCtx) return;
             const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
@@ -217,7 +214,7 @@
             const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
             const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass';
             filter.frequency.setValueAtTime(freq, audioCtx.currentTime); 
-            filter.frequency.exponentialRampToValueValueAtTime ? filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15) : filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.15);
+            filter.frequency.linearRampToValueAtTime ? filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.15) : filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
             const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.7, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
         }
@@ -242,17 +239,21 @@
         renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
         const controls = new PointerLockControls(camera, document.body); scene.add(controls.getObject());
 
-        // ================= SISTEM SENJATA & MODEL 3D UNIK =================
-        let myCoins = 0; let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
+        // ================= SISTEM EKONOMI GANDA & SENJATA =================
+        let teamCoin = 0; 
+        let myXp = 0; 
+        let myLevel = 1;
+
+        let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
         let isReloading = false;
 
         const WEAPONS = {
-            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, price: 0, maxLv: 5, magSize: Infinity, reserve: Infinity, reloadTime: 0 },
-            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 5, fireRate: 500, auto: false, spread: 0, bullets: 1, price: 300, maxLv: 10, magSize: 12, reserve: 60, reloadTime: 1500 },
-            'uzi': { id: 'uzi', name: 'Uzi Pro', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.06, bullets: 1, price: 1000, maxLv: 10, magSize: 20, reserve: 120, reloadTime: 1800 },
-            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, price: 2500, maxLv: 10, magSize: 30, reserve: 120, reloadTime: 2000 },
-            'shotgun': { id: 'shotgun', name: 'Shotgun Taktis', icon: '💥', baseDmg: 14, fireRate: 800, auto: false, spread: 0.15, bullets: 7, price: 4500, maxLv: 10, magSize: 7, reserve: 60, reloadTime: 2500 },
-            'm249': { id: 'm249', name: 'M249 SAW', icon: '🔥', baseDmg: 18, fireRate: 130, auto: true, spread: 0.04, bullets: 1, price: 9000, maxLv: 10, magSize: 100, reserve: 500, reloadTime: 3500 }
+            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, xpPrice: 0, reqLevel: 1, maxLv: 5, magSize: Infinity, reserve: Infinity, reloadTime: 0 },
+            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 5, fireRate: 500, auto: false, spread: 0, bullets: 1, xpPrice: 500, reqLevel: 2, maxLv: 10, magSize: 12, reserve: 60, reloadTime: 1500 },
+            'uzi': { id: 'uzi', name: 'Uzi Pro', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.06, bullets: 1, xpPrice: 1500, reqLevel: 4, maxLv: 10, magSize: 20, reserve: 120, reloadTime: 1800 },
+            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, xpPrice: 3000, reqLevel: 6, maxLv: 10, magSize: 30, reserve: 120, reloadTime: 2000 },
+            'shotgun': { id: 'shotgun', name: 'Shotgun Taktis', icon: '💥', baseDmg: 14, fireRate: 800, auto: false, spread: 0.15, bullets: 7, xpPrice: 5000, reqLevel: 8, maxLv: 10, magSize: 7, reserve: 60, reloadTime: 2500 },
+            'm249': { id: 'm249', name: 'M249 SAW', icon: '🔥', baseDmg: 18, fireRate: 130, auto: true, spread: 0.04, bullets: 1, xpPrice: 8000, reqLevel: 10, maxLv: 10, magSize: 100, reserve: 500, reloadTime: 3500 }
         };
 
         let ownedWeapons = { 'default': 1 }; 
@@ -266,6 +267,7 @@
         };
         let quickbarSlots = ['default', null, null, null];
 
+        // --- MODEL 3D SENJATA ---
         const gunGroup = new THREE.Group();
         let currentGunMeshName = 'default';
         const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
@@ -274,24 +276,21 @@
 
         function updateGunModel(gunKey) {
             currentGunMeshName = gunKey;
-            while(gunGroup.children.length > 1) { gunGroup.remove(gunGroup.children[1]); } // Hapus mesh lama, sisakan muzzleFlash
+            while(gunGroup.children.length > 1) { gunGroup.remove(gunGroup.children[1]); }
 
             if (gunKey === 'koboy') {
-                // Model Revolver Koboy Klasik
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 1.4), new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.8})); body.position.set(0,0,-0.6);
                 const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.5);
                 const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4), new THREE.MeshStandardMaterial({color: 0x333333})); cylinder.rotation.z = Math.PI/2; cylinder.position.set(0, -0.05, -0.8);
                 const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x8B4513})); grip.position.set(0, -0.6, -0.1); grip.rotation.x = Math.PI/6;
                 gunGroup.add(body, barrel, cylinder, grip);
             } else if (gunKey === 'uzi') {
-                // Model Uzi Pro (Kecil kotak compact)
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 1.2), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); body.position.set(0,0,-0.5);
                 const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.6), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -1.2);
                 const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.3), new THREE.MeshStandardMaterial({color: 0x111111})); mag.position.set(0, -0.7, -0.3); mag.rotation.x = 0.1;
                 const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
                 gunGroup.add(body, barrel, mag, grip);
             } else if (gunKey === 'mp5') {
-                // Model MP5 (Popor besi panjang & mag melengkung)
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({color: 0x222222})); body.position.set(0,0,-0.8);
                 const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.9);
                 const stock = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 1.0), new THREE.MeshStandardMaterial({color: 0x111111})); stock.position.set(0, 0, 0.5);
@@ -299,7 +298,6 @@
                 const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
                 gunGroup.add(body, barrel, stock, mag, grip);
             } else if (gunKey === 'shotgun') {
-                // Model Shotgun Taktis Panjang
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 2.2), new THREE.MeshStandardMaterial({color: 0x2b2b2b})); body.position.set(0,0,-1);
                 const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.0), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.08, -2.2);
                 const pump = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.8), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); pump.position.set(0, -0.1, -1.6);
@@ -307,14 +305,12 @@
                 const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.1); grip.rotation.x = Math.PI/6;
                 gunGroup.add(body, barrel, pump, stock, grip);
             } else if (gunKey === 'm249') {
-                // Model M249 SAW Besar
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 2.5), new THREE.MeshStandardMaterial({color: 0x334433})); body.position.set(0,0,-1.2);
                 const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -2.5);
                 const boxMag = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.8), new THREE.MeshStandardMaterial({color: 0x223322})); boxMag.position.set(0.1, -0.7, -0.8);
                 const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x111111})); grip.position.set(0, -0.8, 0.3); grip.rotation.x = Math.PI/6;
                 gunGroup.add(body, barrel, boxMag, grip);
             } else {
-                // Default Pistol
                 const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); gunBody.position.set(0, 0, -0.8);
                 const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111 })); gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position.set(0, 0.05, -1.8);
                 const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d2817 })); gunGrip.position.set(0, -0.7, 0.2); gunGrip.rotation.x = Math.PI / 6;
@@ -331,7 +327,6 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
-        // API UNGGUN RAKSASA
         const campfireGroup = new THREE.Group();
         campfireGroup.position.set(0, 0, 0);
         const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
@@ -504,7 +499,7 @@
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true;
         }
 
-      function createZombieModel(info) {
+        function createZombieModel(info) {
             const group = new THREE.Group();
             let s = info.type === 'boss' ? 2 : 1; 
             let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
@@ -514,8 +509,8 @@
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = -Math.PI/2; armL.userData = { part: 'body' }; group.add(armL);
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = -Math.PI/2; armR.userData = { part: 'body' }; group.add(armR);
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = 0; armL.userData = { part: 'body' }; group.add(armL);
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = 0; armR.userData = { part: 'body' }; group.add(armR);
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legL.position.set(-0.6*s, 0.5*s, 0); legL.userData = { part: 'legs' }; group.add(legL);
             const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legR.position.set(0.6*s, 0.5*s, 0); legR.userData = { part: 'legs' }; group.add(legR);
 
@@ -524,11 +519,10 @@
             const hbMesh = new THREE.Mesh(new THREE.PlaneGeometry(3*s, 0.5*s), new THREE.MeshBasicMaterial({ map: hbTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
             hbMesh.position.y = 7*s; hbMesh.userData = { isLabel: true }; group.add(hbMesh);
 
-            // [FIX] Masukkan armL, armR, legL, legR ke userData biar bisa digerakkan di animate()
             group.userData = { id: info.id, type: info.type, hp: info.hp, maxHp: info.maxHp, hbCtx, hbTexture, hbMesh, armL, armR, legL, legR, walkTime: 0 };
             updateZombieLabel(group); return group;
         }
-        
+
         function updateZombieLabel(group) {
             const { hbCtx, hbTexture, hp, maxHp } = group.userData;
             hbCtx.clearRect(0, 0, 128, 16); hbCtx.fillStyle = '#ff0000'; hbCtx.fillRect(0, 0, 128, 16);
@@ -570,19 +564,12 @@
 
         socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
         
-socket.on('updateZombiesPosition', (zombieData) => {
+        socket.on('updateZombiesPosition', (zombieData) => {
             for(let zid in zombieData) {
                 if(zombies[zid]) {
                     let oldPos = zombies[zid].position.clone();
                     let newPos = new THREE.Vector3(zombieData[zid].x, 0, zombieData[zid].z);
                     zombies[zid].position.copy(newPos);
-                    
-                    // [FIX] Zombie melihat ke arah tujuannya bergerak, bukan ke dirinya sendiri
-                    if (newPos.distanceTo(oldPos) > 0.001) {
-                        let direction = newPos.clone().sub(oldPos).normalize();
-                        zombies[zid].lookAt(newPos.x + direction.x, 0, newPos.z + direction.z);
-                    }
-                    
                     zombies[zid].userData.hbMesh.lookAt(camera.position);
                 }
             }
@@ -636,8 +623,16 @@ socket.on('updateZombiesPosition', (zombieData) => {
             myHp = Math.min(100, myHp + 30); updateUI(); 
         });
 
-        socket.on('coinReward', (amount) => { 
-            myCoins += amount; document.getElementById('my-coins').innerText = myCoins; 
+        socket.on('syncTeamCoin', (val) => { 
+            teamCoin = val; 
+            document.getElementById('team-coin').innerText = teamCoin; 
+        });
+
+        socket.on('syncPersonalXp', (data) => {
+            myXp = data.xp;
+            myLevel = data.level;
+            document.getElementById('my-xp').innerText = myXp;
+            document.getElementById('my-level').innerText = myLevel;
             if (isShopOpen) renderShop(); 
         });
 
@@ -712,7 +707,6 @@ socket.on('updateZombiesPosition', (zombieData) => {
             document.getElementById('hp').innerText = myHp;
             document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%';
             
-            // Update UI Amunisi
             let activeWId = quickbarSlots[activeQuickSlot] || 'default';
             let ammoInfo = weaponAmmo[activeWId];
             if (ammoInfo) {
@@ -723,21 +717,23 @@ socket.on('updateZombiesPosition', (zombieData) => {
 
         window.buyWeapon = function(key) {
             let w = WEAPONS[key];
-            if (myCoins >= w.price) {
-                myCoins -= w.price; 
-                ownedWeapons[key] = 1; 
-                document.getElementById('my-coins').innerText = myCoins;
-                renderShop(); if (isInventoryOpen) renderInventory();
-            } else alert("Koin bersama tim tidak cukup!");
+            if (myLevel >= w.reqLevel) {
+                if (myXp >= w.xpPrice) {
+                    myXp -= w.xpPrice; 
+                    ownedWeapons[key] = 1; 
+                    document.getElementById('my-xp').innerText = myXp;
+                    renderShop(); if (isInventoryOpen) renderInventory();
+                } else alert("Personal XP (⭐) tidak cukup!");
+            } else alert(`Butuh Personal Level ${w.reqLevel} untuk membeli senjata ini!`);
         };
 
         window.upgradeWeapon = function(key, cost) {
-            if (myCoins >= cost) {
-                myCoins -= cost; 
+            if (myXp >= cost) {
+                myXp -= cost; 
                 ownedWeapons[key]++; 
-                document.getElementById('my-coins').innerText = myCoins;
+                document.getElementById('my-xp').innerText = myXp;
                 renderShop();
-            } else alert("Koin bersama tim tidak cukup!");
+            } else alert("Personal XP (⭐) tidak cukup!");
         };
 
         function renderShop() {
@@ -746,13 +742,20 @@ socket.on('updateZombiesPosition', (zombieData) => {
                 if (key === 'default') return;
                 let w = WEAPONS[key]; let itemDiv = document.createElement('div'); itemDiv.className = 'shop-item';
                 let isOwned = ownedWeapons[key] !== undefined; let lv = ownedWeapons[key] || 0;
-                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | Mag: ${w.magSize}</span></div>`;
-                if (!isOwned) {
-                    html += `<button class="shop-btn" onclick="buyWeapon('${key}')">Beli (${w.price} Koin)</button>`;
+                let isLevelLocked = myLevel < w.reqLevel;
+                
+                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | Syarat: Level ${w.reqLevel}</span></div>`;
+                
+                if (isLevelLocked) {
+                    html += `<button class="shop-btn disabled" disabled>Terkunci (Lv ${w.reqLevel})</button>`;
+                }
+                else if (!isOwned) {
+                    html += `<button class="shop-btn" onclick="buyWeapon('${key}')">Beli (${w.xpPrice} XP)</button>`;
                 } else if (lv < w.maxLv) {
-                    let upgCost = w.price + (lv * Math.floor(w.price * 0.5));
-                    html += `<div><span style="color:#00ff00;margin-right:10px;">Lv.${lv}</span><button class="shop-btn" onclick="upgradeWeapon('${key}', ${upgCost})">Upgrade (${upgCost} Koin)</button></div>`;
+                    let upgCost = w.xpPrice + (lv * Math.floor(w.xpPrice * 0.5));
+                    html += `<div><span style="color:#00ff00;margin-right:10px;">Lv.${lv}</span><button class="shop-btn" onclick="upgradeWeapon('${key}', ${upgCost})">Upgrade (${upgCost} XP)</button></div>`;
                 } else html += `<div><span style="color:#ffff00; font-weight:bold;">MAX LVL</span></div>`;
+                
                 itemDiv.innerHTML = html; container.appendChild(itemDiv);
             });
         }
@@ -775,8 +778,7 @@ socket.on('updateZombiesPosition', (zombieData) => {
             }
         }
 
-        // ================= SISTEM PROYEKTIL FISIKA ALA GAME AAA =================
-        let bulletsInFlight = []; // Menyimpan proyektil aktif
+        let bulletsInFlight = [];
 
         function reloadWeapon() {
             if (isReloading) return;
@@ -789,7 +791,6 @@ socket.on('updateZombiesPosition', (zombieData) => {
             isReloading = true;
             document.getElementById('ammo-display').innerText = "RELOADING...";
 
-            // Animasi sederhana senjata turun saat reload
             gunGroup.position.y = -2.2;
 
             setTimeout(() => {
@@ -803,7 +804,7 @@ socket.on('updateZombiesPosition', (zombieData) => {
             }, wInfo.reloadTime);
         }
 
-     function fireWeapon() {
+        function fireWeapon() {
             if (isReloading) return;
             let now = performance.now();
             let wId = quickbarSlots[activeQuickSlot] || 'default';
@@ -830,9 +831,7 @@ socket.on('updateZombiesPosition', (zombieData) => {
             gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
 
             for (let i = 0; i < wInfo.bullets; i++) {
-                // Tembak lurus dari posisi kamera (mata player / pusat crosshair) biar 100% akurat
                 let startPos = camera.position.clone();
-                
                 let raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
                 let targetDir = raycaster.ray.direction.clone();
@@ -850,7 +849,7 @@ socket.on('updateZombiesPosition', (zombieData) => {
                 bulletMesh.position.copy(startPos);
                 scene.add(bulletMesh);
 
-                let velocity = targetDir.multiplyScalar(400); // Kecepatan tinggi, lurus, dan jauh
+                let velocity = targetDir.multiplyScalar(400);
 
                 bulletsInFlight.push({
                     mesh: bulletMesh,
@@ -965,7 +964,6 @@ socket.on('updateZombiesPosition', (zombieData) => {
 
             for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
             
-// ================= UPDATE PROYEKTIL & HITBOX PRESISI (KEPALA/BADAN/KAKI) =================
             for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
                 let b = bulletsInFlight[i];
                 b.life -= delta;
@@ -973,27 +971,35 @@ socket.on('updateZombiesPosition', (zombieData) => {
                 let stepMove = b.velocity.clone().multiplyScalar(delta);
                 b.mesh.position.add(stepMove);
 
-             let hitDetected = false;
+                let hitDetected = false;
                 let closestPart = null;
                 let minDistance = Infinity;
                 let hitZid = null;
                 
-                // [FIX] Cari part tubuh zombie yang PALING DEKAT dengan peluru dengan radius yang akurat
                 for (let zid in zombies) {
                     let zGroup = zombies[zid];
                     if (zGroup) {
                         let s = zGroup.userData.type === 'boss' ? 2 : 1;
+                        
+                        let headMesh = zGroup.children[1];
+                        if (headMesh) {
+                            let headPos = new THREE.Vector3();
+                            headMesh.getWorldPosition(headPos);
+                            if (b.mesh.position.distanceTo(headPos) < (1.5 * s)) {
+                                minDistance = 0;
+                                closestPart = 'head';
+                                hitZid = zid;
+                                break;
+                            }
+                        }
+
                         for (let child of zGroup.children) {
                             if (child.type === "Mesh" && !child.userData.isLabel) {
                                 let childWorldPos = new THREE.Vector3();
                                 child.getWorldPosition(childWorldPos);
                                 let dist = b.mesh.position.distanceTo(childWorldPos);
                                 
-                                // Radius spesifik: Kepala lebih kecil, badan lebih luas
-                                let hitRadius = 1.2 * s; // Default badan
-                                if (child.userData.part === 'head') hitRadius = 0.9 * s;
-                                else if (child.userData.part === 'legs') hitRadius = 1.0 * s;
-
+                                let hitRadius = 1.6 * s;
                                 if (dist < hitRadius && dist < minDistance) {
                                     minDistance = dist;
                                     closestPart = child.userData.part || 'body';
@@ -1009,8 +1015,6 @@ socket.on('updateZombiesPosition', (zombieData) => {
                     hitDetected = true;
                 }
 
-              
-                // Cek tabrakan dengan dinding bangunan
                 if (!hitDetected) {
                     for (let w of serverWalls) {
                         let hwX = w.width / 2; let hwZ = w.depth / 2;
@@ -1092,23 +1096,28 @@ socket.on('updateZombiesPosition', (zombieData) => {
                 if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
             }
 
-            // ================= ANIMASI ZOMBIE JALAN =================
             for(let zid in zombies) {
                 let z = zombies[zid];
                 if(z.visible) {
                     if (!z.userData.lastPos) z.userData.lastPos = z.position.clone();
                     let distMoved = z.position.distanceTo(z.userData.lastPos);
                     
-                    if (distMoved > 0.01) {
-                        z.userData.walkTime = (z.userData.walkTime || 0) + 12 * delta;
-                        let swing = Math.sin(z.userData.walkTime) * 0.7; // Ayunan tangan dan kaki
-                        if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI/2 + swing;
-                        if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI/2 - swing;
-                        if(z.userData.legL) z.userData.legL.rotation.x = swing;
-                        if(z.userData.legR) z.userData.legR.rotation.x = -swing;
+                    let dir = z.position.clone().sub(z.userData.lastPos);
+                    if (dir.length() > 0.001) {
+                        let targetAngle = Math.atan2(dir.x, dir.z);
+                        z.rotation.y = targetAngle;
+                    }
+
+                    if (distMoved > 0.001) {
+                        z.userData.walkTime = (z.userData.walkTime || 0) + 14 * delta;
+                        let swing = Math.sin(z.userData.walkTime) * 0.9;
+                        if(z.userData.armL) z.userData.armL.rotation.x = swing;
+                        if(z.userData.armR) z.userData.armR.rotation.x = -swing;
+                        if(z.userData.legL) z.userData.legL.rotation.x = -swing;
+                        if(z.userData.legR) z.userData.legR.rotation.x = swing;
                     } else {
-                        if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI/2;
-                        if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI/2;
+                        if(z.userData.armL) z.userData.armL.rotation.x = 0;
+                        if(z.userData.armR) z.userData.armR.rotation.x = 0;
                         if(z.userData.legL) z.userData.legL.rotation.x = 0;
                         if(z.userData.legR) z.userData.legR.rotation.x = 0;
                     }
