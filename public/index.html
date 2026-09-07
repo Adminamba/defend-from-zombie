@@ -919,11 +919,15 @@
                 crosshair.classList.add('recoil');
                 setTimeout(() => crosshair.classList.remove('recoil'), 100);
             }
-            
-           // --- PERBAIKAN RECOIL GAYA COUNTER-STRIKE (PITCH + YAW TANPA ROLL) ---
-          let recoilPitch = wInfo.baseDmg * 0.0035;
-           camera.rotation.x += recoilPitch;
-           camera.rotation.z = 0;
+       // Ambil arah pandangan kamera saat ini, lalu dorong sedikit ke atas secara lokal
+           let recoilPitch = wInfo.baseDmg * 0.0035;
+           
+           // Gunakan pitch object dari controls jika ada, atau geser rotasi X dengan aman
+           if (controls && controls.getObject()) {
+               camera.rotation.x += recoilPitch;
+               // Pastikan sumbu Z (roll) dikunci mati di angka 0 agar tidak pernah miring
+               camera.rotation.z = 0;
+           }
 
             for (let i = 0; i < wInfo.bullets; i++) {
                 let startPos = camera.position.clone();
