@@ -249,21 +249,26 @@ socket.on('shootZombie', (data) => {
     if (socket.roomId && rooms[socket.roomId]) {
         let room = rooms[socket.roomId];
         let z = room.zombies[data.id];
-        if (z) {
+        let player = room.players[socket.id];
+        
+        if (z && player) {
+            // Validasi jarak tembak di sisi server untuk mencegah exploit/cheat
+            let distToZombie = Math.hypot(player.x - z.x, player.z - z.z);
+            if (distToZombie > 300) return; // Jarak maksimum wajar tembakan
+
             let wDmg = Number(data.damage) || 1;
             let damage = wDmg;
             if (data.part === 'head') damage = wDmg * 3;
             else if (data.part === 'legs') damage = wDmg * 0.5;
 
-            // Tracking Damage untuk pembagian XP
             if (!z.damageTrack) z.damageTrack = {};
             z.damageTrack[socket.id] = (z.damageTrack[socket.id] || 0) + damage;
 
             z.hp -= damage;
-            io.to(socket.roomId).emit('spawnDamageIndicator', { x: z.x, y: 5, z: z.z, dmg: Math.floor(damage), color: '#ffff00' });
+            let hitPt = data.hitPoint || { x: z.x, y: 5, z: z.z };
+            io.to(socket.roomId).emit('spawnDamageIndicator', { x: hitPt.x, y: hitPt.y + 1, z: hitPt.z, dmg: Math.floor(damage), color: '#ffff00' });
 
             if (z.hp <= 0) {
-                // REWARD TEAM COIN (Hanya sekali per kematian zombie ke saldo bersama)
                 let tCoin = 0;
                 let baseXP = 0;
                 if (z.type === 'boss') { tCoin = 500; baseXP = 500; }
@@ -274,7 +279,6 @@ socket.on('shootZombie', (data) => {
                 room.teamCoin = (room.teamCoin || 0) + tCoin;
                 io.to(socket.roomId).emit('syncTeamCoin', room.teamCoin);
 
-                // REWARD PERSONAL XP (Sistem Kontribusi Damage, BUKAN Last Hit)
                 let totalDmgDone = 0;
                 for (let pid in z.damageTrack) totalDmgDone += z.damageTrack[pid];
 
@@ -283,7 +287,6 @@ socket.on('shootZombie', (data) => {
                         let ratio = z.damageTrack[pid] / totalDmgDone;
                         let earnedXp = Math.floor(ratio * baseXP);
                         
-                        // Bonus flat kecil untuk Last Hit
                         if (pid === socket.id) {
                             let killBonus = z.type === 'boss' ? 100 : (z.type === 'kuat' ? 20 : (z.type === 'fast' ? 15 : 10));
                             earnedXp += killBonus;
@@ -291,7 +294,6 @@ socket.on('shootZombie', (data) => {
 
                         room.players[pid].xp = (room.players[pid].xp || 0) + earnedXp;
 
-                        // Kalkulasi Level Pribadi
                         let pXp = room.players[pid].xp;
                         let pLv = 1;
                         if (pXp >= 6500) pLv = 10;
@@ -305,8 +307,6 @@ socket.on('shootZombie', (data) => {
                         else if (pXp >= 250) pLv = 2;
 
                         room.players[pid].level = pLv;
-
-                        // Sync ke client player tersebut
                         io.to(pid).emit('syncPersonalXp', { xp: pXp, level: pLv });
                     }
                 }
@@ -321,7 +321,6 @@ socket.on('shootZombie', (data) => {
 
                     setTimeout(() => {
                         if (room.gameState === 'PLAYING') {
-                            // Untuk Phase 1, spawn normal. Di fase berikutnya akan ada Varian.
                             spawnZombies(room);
                             io.to(socket.roomId).emit('levelUp', room.level);
                         }
@@ -333,7 +332,7 @@ socket.on('shootZombie', (data) => {
         }
     }
 });
-
+    
     socket.on('disconnect', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
