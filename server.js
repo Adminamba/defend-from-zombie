@@ -239,6 +239,12 @@ io.on('connection', (socket) => {
         if (socket.roomId) socket.broadcast.to(socket.roomId).emit('otherPlayerShot', socket.id);
     });
 
+    socket.on('playerAction', (data) => {
+        if (socket.roomId) {
+            socket.broadcast.to(socket.roomId).emit('otherPlayerAction', { id: socket.id, action: data.action });
+        }
+    });
+
 socket.on('shootZombie', (data) => {
     if (socket.roomId && rooms[socket.roomId]) {
         let room = rooms[socket.roomId];
