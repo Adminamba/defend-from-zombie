@@ -1117,20 +1117,14 @@
                     }
                 }
                 
-                if (!hitDetected && typeof serverWalls !== 'undefined') {
-                    for (let w of serverWalls) {
-                        let hwX = w.width / 2; let hwZ = w.depth / 2;
-                        let wallBox = new THREE.Box3(
-                            new THREE.Vector3(w.x - hwX, 0, w.z - hwZ),
-                            new THREE.Vector3(w.x + hwX, w.height, w.z + hwZ)
-                        );
-                        let wallIntersect = new THREE.Vector3();
-                        if (wallBox.intersectRay(raySegment, wallIntersect)) {
-                            let dist = b.previousPosition.distanceTo(wallIntersect);
-                            if (dist <= maxDist) {
-                                hitDetected = true;
-                                break;
-                            }
+              if (!hitDetected && typeof serverWalls !== 'undefined' && wallMeshes.length > 0) {
+                    // Gunakan Raycaster bawaan Three.js langsung ke mesh dinding agar aman dan akurat
+                    let raycasterWall = new THREE.Raycaster(b.previousPosition, b.velocity.clone().normalize());
+                    let wallIntersects = raycasterWall.intersectObjects(wallMeshes);
+                    if (wallIntersects.length > 0) {
+                        let dist = b.previousPosition.distanceTo(wallIntersects[0].point);
+                        if (dist <= maxDist) {
+                            hitDetected = true;
                         }
                     }
                 }
