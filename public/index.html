@@ -781,6 +781,7 @@
         let bulletsInFlight = [];
 
  
+let reloadTimeoutId = null; // Tambahkan timeout pengaman
 
         function reloadWeapon() {
             if (isReloading) return;
@@ -791,12 +792,25 @@
             if (wInfo.magSize === Infinity || ammo.current >= wInfo.magSize || ammo.reserve <= 0) return;
 
             isReloading = true;
-            document.getElementById('ammo-display').innerText = "RELOADING...";
+            document.getElementById('ammo-display').innerHTML = 'Peluru: <span id="current-ammo">RELOADING...</span> / <span id="reserve-ammo">' + ammo.reserve + '</span>';
 
             let reloadStartTime = performance.now();
             let duration = wInfo.reloadTime;
 
+            // Failsafe timeout: Jika dalam durasi reload + 500ms state belum ke-reset, paksa reset otomatis
+            if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
+            reloadTimeoutId = setTimeout(() => {
+                if (isReloading) {
+                    isReloading = false;
+                    gunGroup.position.y = -1.4;
+                    updateUI();
+                }
+            }, duration + 500);
+
             function animateReload(now) {
+                // Jika player sudah tidak reload atau ganti senjata di tengah jalan, batalkan animasi loop ini
+                if (!isReloading) return;
+
                 let elapsed = now - reloadStartTime;
                 let progress = Math.min(1, elapsed / duration);
 
@@ -814,15 +828,15 @@
                     let take = Math.min(needed, ammo.reserve);
                     ammo.current += take;
                     ammo.reserve -= take;
-                    isReloading = false; // Selesai reload, bisa nembak lagi
+                    isReloading = false;
                     gunGroup.position.y = -1.4;
+                    if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
                     updateUI();
                 }
             }
 
             requestAnimationFrame(animateReload);
         }
-
         function fireWeapon() {
             if (isReloading) return;
             let now = performance.now();
@@ -943,7 +957,12 @@
                 return;
             }
 
-            if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+         if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+                // Batalkan paksa reload aktif jika ganti senjata
+                isReloading = false;
+                if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
+                gunGroup.position.y = -1.4;
+
                 let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
                 activeQuickSlot = slotIdx;
                 document.querySelectorAll('.quick-slot').forEach((el, idx) => { el.classList.toggle('active', idx === slotIdx); });
