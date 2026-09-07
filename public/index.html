@@ -919,8 +919,17 @@
                 crosshair.classList.add('recoil');
                 setTimeout(() => crosshair.classList.remove('recoil'), 100);
             }
-            camera.rotation.x += (wInfo.baseDmg * 0.0015);
-            camera.rotation.y += (Math.random() - 0.5) * 0.01;
+            
+           // --- PERBAIKAN RECOIL GAYA COUNTER-STRIKE (PITCH + YAW TANPA ROLL) ---
+            let recoilPitch = wInfo.baseDmg * 0.0035; // Kekuatan dorongan ke atas
+            let recoilYaw = (Math.random() - 0.5) * (wInfo.baseDmg * 0.0015); // Sedikit geser kiri/kanan acak
+
+            // Terapkan ke kamera tanpa menyentuh roll (Z tetap 0)
+            camera.rotation.x += recoilPitch;
+            camera.rotation.y += recoilYaw;
+            
+            // KUNCI UTAMA: Paksa roll / sumbu Z selalu 0 agar horizon tidak pernah miring/diagonal
+            camera.rotation.z = 0;
 
             for (let i = 0; i < wInfo.bullets; i++) {
                 let startPos = camera.position.clone();
