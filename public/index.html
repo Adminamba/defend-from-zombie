@@ -437,8 +437,7 @@
         }
         setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
         fetchRooms();
-
-      window.joinRoom = function(roomId, roomName) {
+window.joinRoom = function(roomId, roomName) {
             const name = document.getElementById('username-input').value.trim(); 
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -456,8 +455,8 @@
             if(lobbyTitle) lobbyTitle.innerText = "ROOM: " + roomName;
         };
         
-        // PERBAIKAN UTAMA DI SINI (Pastikan ID dan Nama Room terkirim bener ke server)
-        document.getElementById('btn-create-room').addEventListener('click', () => {
+        // PASTIKAN TOMBOL INI AKTIF DAN MENANGKAP KLIK DENGAN BENAR
+        document.getElementById('btn-create-room').onclick = () => {
             const name = document.getElementById('username-input').value.trim();
             if(!name) {
                 alert("Isi username dulu bro!");
@@ -466,10 +465,9 @@
             let rName = document.getElementById('room-name-input').value.trim();
             if(!rName) rName = "Room " + Math.floor(Math.random()*1000);
             
-            // Buat ID unik berdasarkan waktu biar lgsung ke-generate di server
             let uniqueRoomId = 'room_' + Date.now();
             joinRoom(uniqueRoomId, rName);
-        });
+        };
         
         document.getElementById('btn-create-room').addEventListener('click', () => {
             const name = document.getElementById('username-input').value.trim();
@@ -1000,10 +998,8 @@ window.addEventListener('mousedown', (e) => {
             const isLoginVisible = loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none';
             const isLobbyVisible = lobbyOverlay && window.getComputedStyle(lobbyOverlay).display !== 'none';
 
-            // JANGAN LOCK KURSOR KALO LAGI DI MENU, TAPI JANGAN BLOK KLIK TOMBOLNYA
-            if (isLoginVisible || isLobbyVisible) {
-                return; 
-            }
+            // Kalau lagi di menu, abaikan klik game supaya tombol bisa diklik
+            if (isLoginVisible || isLobbyVisible) return;
 
             if (!controls.isLocked && myHp > 0 && !isSpectating) {
                 controls.lock();
