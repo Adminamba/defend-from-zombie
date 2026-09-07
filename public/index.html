@@ -780,7 +780,7 @@
 
         let bulletsInFlight = [];
 
-        function reloadWeapon() {
+     function reloadWeapon() {
             if (isReloading) return;
             let wId = quickbarSlots[activeQuickSlot] || 'default';
             let wInfo = WEAPONS[wId];
@@ -791,17 +791,33 @@
             isReloading = true;
             document.getElementById('ammo-display').innerText = "RELOADING...";
 
-            gunGroup.position.y = -2.2;
+            let reloadStartTime = performance.now();
+            let duration = wInfo.reloadTime;
 
-            setTimeout(() => {
-                let needed = wInfo.magSize - ammo.current;
-                let take = Math.min(needed, ammo.reserve);
-                ammo.current += take;
-                ammo.reserve -= take;
-                isReloading = false;
-                gunGroup.position.y = -1.4;
-                updateUI();
-            }, wInfo.reloadTime);
+            function animateReload(now) {
+                let elapsed = now - reloadStartTime;
+                let progress = Math.min(1, elapsed / duration);
+
+                if (progress < 0.5) {
+                    gunGroup.position.y = -1.4 - (progress * 1.6);
+                } else {
+                    gunGroup.position.y = -2.2 + ((progress - 0.5) * 1.6);
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateReload);
+                } else {
+                    let needed = wInfo.magSize - ammo.current;
+                    let take = Math.min(needed, ammo.reserve);
+                    ammo.current += take;
+                    ammo.reserve -= take;
+                    isReloading = false;
+                    gunGroup.position.y = -1.4;
+                    updateUI();
+                }
+            }
+
+            requestAnimationFrame(animateReload);
         }
 
         function fireWeapon() {
@@ -964,7 +980,7 @@
 
             for (let i = lasers.length - 1; i >= 0; i--) { if (time - lasers[i].time > 50) { scene.remove(lasers[i].mesh); lasers.splice(i, 1); } }
             
-            for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
+        for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
                 let b = bulletsInFlight[i];
                 b.life -= delta;
                 
@@ -981,25 +997,15 @@
                     if (zGroup) {
                         let s = zGroup.userData.type === 'boss' ? 2 : 1;
                         
-                        let headMesh = zGroup.children[1];
-                        if (headMesh) {
-                            let headPos = new THREE.Vector3();
-                            headMesh.getWorldPosition(headPos);
-                            if (b.mesh.position.distanceTo(headPos) < (1.5 * s)) {
-                                minDistance = 0;
-                                closestPart = 'head';
-                                hitZid = zid;
-                                break;
-                            }
-                        }
-
+                        // Periksa bounding box atau jarak raycasting ke setiap bagian tubuh zombie secara akurat
                         for (let child of zGroup.children) {
                             if (child.type === "Mesh" && !child.userData.isLabel) {
                                 let childWorldPos = new THREE.Vector3();
                                 child.getWorldPosition(childWorldPos);
                                 let dist = b.mesh.position.distanceTo(childWorldPos);
                                 
-                                let hitRadius = 1.6 * s;
+                                // Perbesar sedikit radius toleransi hit (terutama kepala) agar tidak tembus
+                                let hitRadius = (child.userData.part === 'head' ? 1.8 : 2.2) * s;
                                 if (dist < hitRadius && dist < minDistance) {
                                     minDistance = dist;
                                     closestPart = child.userData.part || 'body';
@@ -1096,18 +1102,23 @@
                 if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
             }
 
-            for(let zid in zombies) {
+           for(let zid in zombies) {
                 let z = zombies[zid];
                 if(z.visible) {
                     if (!z.userData.lastPos) z.userData.lastPos = z.position.clone();
-                    let distMoved = z.position.distanceTo(z.userData.lastPos);
                     
-                    let dir = z.position.clone().sub(z.userData.lastPos);
+                    let targetPos = z.position.clone();
+                    let dir = targetPos.clone().sub(z.userData.lastPos);
+                    
                     if (dir.length() > 0.001) {
                         let targetAngle = Math.atan2(dir.x, dir.z);
-                        z.rotation.y = targetAngle;
+                        let diff = targetAngle - z.rotation.y;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        z.rotation.y += diff * 0.2;
                     }
 
+                    let distMoved = targetPos.distanceTo(z.userData.lastPos);
                     if (distMoved > 0.001) {
                         z.userData.walkTime = (z.userData.walkTime || 0) + 14 * delta;
                         let swing = Math.sin(z.userData.walkTime) * 0.9;
