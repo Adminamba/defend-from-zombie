@@ -912,8 +912,20 @@
             playGunSound(wId); 
             socket.emit('playerShootVisual');
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-            gunGroup.position.z = -2.2; setTimeout(() => gunGroup.position.z = -2.5, 50);
-
+           // --- RECOIL BERSIH KHUSUS SENJATA & CROSSHAIR (KAMERA DIJAMIN AMAN TEGAK) ---
+           // Kita kasih efek nendang ke atas lewat posisi senjata (gunGroup) biar gak ngerusak sudut pandang kamera
+           gunGroup.position.z += 0.3; 
+           setTimeout(() => { gunGroup.position.z = -2.5; }, 80);
+           
+           // Dorong sedikit rotasi pitch kamera ke atas secara absolut tanpa sentuh roll/yaw
+           camera.rotation.x += (wInfo.baseDmg * 0.002);
+           
+           // KUNCI MATI SEMUA KEMIRINGAN
+           camera.rotation.z = 0;
+           if (controls && controls.getObject()) {
+               controls.getObject().rotation.z = 0;
+           }
+            
             const crosshair = document.getElementById('crosshair');
             if(crosshair) {
                 crosshair.classList.add('recoil');
