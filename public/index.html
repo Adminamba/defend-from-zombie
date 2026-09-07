@@ -976,7 +976,6 @@
             if (isSpectating && e.buttons === 2) {
                 specAngleX -= e.movementX * 0.005; specAngleY -= e.movementY * 0.005; specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
             }
-        });
 window.addEventListener('mousedown', (e) => {
             if (isInventoryOpen) {
                 const modal = document.getElementById('inventory-modal');
@@ -996,20 +995,23 @@ window.addEventListener('mousedown', (e) => {
                 return;
             }
 
-            // CEK APAKAH SEDANG BERADA DI MENU LOGIN ATAU LOBBY ROOM
             const loginOverlay = document.getElementById('login-overlay');
             const lobbyOverlay = document.getElementById('lobby-room-menu');
             const isLoginVisible = loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none';
             const isLobbyVisible = lobbyOverlay && window.getComputedStyle(lobbyOverlay).display !== 'none';
 
-            // JANGAN LOCK KURSOR ATAU MASUK GAME KALAU MASIH DI MENU LOGIN / LOBBY!
-            if (!controls.isLocked && myHp > 0 && !isSpectating && !isLoginVisible && !isLobbyVisible) {
+            if (isLoginVisible || isLobbyVisible) return;
+
+            // Kalau kursor belum ter-lock tapi kita di dalam game, lock lagi otomatis saat klik kiri
+            if (!controls.isLocked && myHp > 0 && !isSpectating) {
                 controls.lock();
                 return;
             }
 
+            // Kalau sudah ter-lock dan klik kiri, lakukan tembakan
             if (controls.isLocked && myHp > 0 && e.button === 0) {
-                isShooting = true; fireWeapon();
+                isShooting = true; 
+                fireWeapon();
             }
         });
         
