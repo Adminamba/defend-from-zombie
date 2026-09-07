@@ -175,7 +175,7 @@ io.on('connection', (socket) => {
             rooms[roomId] = { 
                 id: roomId, name: roomName, players: {}, zombies: {}, 
                 level: 1, gameState: 'LOBBY', walls: generateBaseWalls(),
-                campfireHp: 200, maxCampfireHp: 200 // Api Unggun 200% HP
+                campfireHp: 200, maxCampfireHp: 200 
             };
         }
         let room = rooms[roomId];
@@ -245,93 +245,92 @@ io.on('connection', (socket) => {
         }
     });
 
-socket.on('shootZombie', (data) => {
-    if (socket.roomId && rooms[socket.roomId]) {
-        let room = rooms[socket.roomId];
-        let z = room.zombies[data.id];
-        let player = room.players[socket.id];
-        
-        if (z && player) {
-            // Validasi jarak tembak di sisi server untuk mencegah exploit/cheat
-            let distToZombie = Math.hypot(player.x - z.x, player.z - z.z);
-            if (distToZombie > 300) return; // Jarak maksimum wajar tembakan
+    socket.on('shootZombie', (data) => {
+        if (socket.roomId && rooms[socket.roomId]) {
+            let room = rooms[socket.roomId];
+            let z = room.zombies[data.id];
+            let player = room.players[socket.id];
+            
+            if (z && player) {
+                let distToZombie = Math.hypot(player.x - z.x, player.z - z.z);
+                if (distToZombie > 300) return;
 
-            let wDmg = Number(data.damage) || 1;
-            let damage = wDmg;
-            if (data.part === 'head') damage = wDmg * 3;
-            else if (data.part === 'legs') damage = wDmg * 0.5;
+                let wDmg = Number(data.damage) || 1;
+                let damage = wDmg;
+                if (data.part === 'head') damage = wDmg * 3;
+                else if (data.part === 'legs') damage = wDmg * 0.5;
 
-            if (!z.damageTrack) z.damageTrack = {};
-            z.damageTrack[socket.id] = (z.damageTrack[socket.id] || 0) + damage;
+                if (!z.damageTrack) z.damageTrack = {};
+                z.damageTrack[socket.id] = (z.damageTrack[socket.id] || 0) + damage;
 
-            z.hp -= damage;
-            let hitPt = data.hitPoint || { x: z.x, y: 5, z: z.z };
-            io.to(socket.roomId).emit('spawnDamageIndicator', { x: hitPt.x, y: hitPt.y + 1, z: hitPt.z, dmg: Math.floor(damage), color: '#ffff00' });
+                z.hp -= damage;
+                let hitPt = data.hitPoint || { x: z.x, y: 5, z: z.z };
+                io.to(socket.roomId).emit('spawnDamageIndicator', { x: hitPt.x, y: hitPt.y + 1, z: hitPt.z, dmg: Math.floor(damage), color: '#ffff00' });
 
-            if (z.hp <= 0) {
-                let tCoin = 0;
-                let baseXP = 0;
-                if (z.type === 'boss') { tCoin = 500; baseXP = 500; }
-                else if (z.type === 'kuat') { tCoin = 50; baseXP = 100; }
-                else if (z.type === 'fast') { tCoin = 35; baseXP = 70; }
-                else { tCoin = 25; baseXP = 50; }
+                if (z.hp <= 0) {
+                    let tCoin = 0;
+                    let baseXP = 0;
+                    if (z.type === 'boss') { tCoin = 500; baseXP = 500; }
+                    else if (z.type === 'kuat') { tCoin = 50; baseXP = 100; }
+                    else if (z.type === 'fast') { tCoin = 35; baseXP = 70; }
+                    else { tCoin = 25; baseXP = 50; }
 
-                room.teamCoin = (room.teamCoin || 0) + tCoin;
-                io.to(socket.roomId).emit('syncTeamCoin', room.teamCoin);
+                    room.teamCoin = (room.teamCoin || 0) + tCoin;
+                    io.to(socket.roomId).emit('syncTeamCoin', room.teamCoin);
 
-                let totalDmgDone = 0;
-                for (let pid in z.damageTrack) totalDmgDone += z.damageTrack[pid];
+                    let totalDmgDone = 0;
+                    for (let pid in z.damageTrack) totalDmgDone += z.damageTrack[pid];
 
-                for (let pid in z.damageTrack) {
-                    if (room.players[pid]) {
-                        let ratio = z.damageTrack[pid] / totalDmgDone;
-                        let earnedXp = Math.floor(ratio * baseXP);
-                        
-                        if (pid === socket.id) {
-                            let killBonus = z.type === 'boss' ? 100 : (z.type === 'kuat' ? 20 : (z.type === 'fast' ? 15 : 10));
-                            earnedXp += killBonus;
+                    for (let pid in z.damageTrack) {
+                        if (room.players[pid]) {
+                            let ratio = z.damageTrack[pid] / totalDmgDone;
+                            let earnedXp = Math.floor(ratio * baseXP);
+                            
+                            if (pid === socket.id) {
+                                let killBonus = z.type === 'boss' ? 100 : (z.type === 'kuat' ? 20 : (z.type === 'fast' ? 15 : 10));
+                                earnedXp += killBonus;
+                            }
+
+                            room.players[pid].xp = (room.players[pid].xp || 0) + earnedXp;
+
+                            let pXp = room.players[pid].xp;
+                            let pLv = 1;
+                            if (pXp >= 6500) pLv = 10;
+                            else if (pXp >= 5200) pLv = 9;
+                            else if (pXp >= 4000) pLv = 8;
+                            else if (pXp >= 3000) pLv = 7;
+                            else if (pXp >= 2200) pLv = 6;
+                            else if (pXp >= 1500) pLv = 5;
+                            else if (pXp >= 1000) pLv = 4;
+                            else if (pXp >= 600) pLv = 3;
+                            else if (pXp >= 250) pLv = 2;
+
+                            room.players[pid].level = pLv;
+                            io.to(pid).emit('syncPersonalXp', { xp: pXp, level: pLv });
                         }
-
-                        room.players[pid].xp = (room.players[pid].xp || 0) + earnedXp;
-
-                        let pXp = room.players[pid].xp;
-                        let pLv = 1;
-                        if (pXp >= 6500) pLv = 10;
-                        else if (pXp >= 5200) pLv = 9;
-                        else if (pXp >= 4000) pLv = 8;
-                        else if (pXp >= 3000) pLv = 7;
-                        else if (pXp >= 2200) pLv = 6;
-                        else if (pXp >= 1500) pLv = 5;
-                        else if (pXp >= 1000) pLv = 4;
-                        else if (pXp >= 600) pLv = 3;
-                        else if (pXp >= 250) pLv = 2;
-
-                        room.players[pid].level = pLv;
-                        io.to(pid).emit('syncPersonalXp', { xp: pXp, level: pLv });
                     }
+
+                    delete room.zombies[data.id];
+                    io.to(socket.roomId).emit('zombieDied', data.id);
+
+                    if (Object.keys(room.zombies).length === 0) {
+                        room.level++;
+                        if (room.level > 99) room.level = 99;
+                        io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 45 });
+
+                        setTimeout(() => {
+                            if (room.gameState === 'PLAYING') {
+                                spawnZombies(room);
+                                io.to(socket.roomId).emit('levelUp', room.level);
+                            }
+                        }, 45000);
+                    }
+                } else {
+                    io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp });
                 }
-
-                delete room.zombies[data.id];
-                io.to(socket.roomId).emit('zombieDied', data.id);
-
-                if (Object.keys(room.zombies).length === 0) {
-                    room.level++;
-                    if (room.level > 99) room.level = 99;
-                    io.to(socket.roomId).emit('waveCleared', { nextLevel: room.level, cooldown: 45 });
-
-                    setTimeout(() => {
-                        if (room.gameState === 'PLAYING') {
-                            spawnZombies(room);
-                            io.to(socket.roomId).emit('levelUp', room.level);
-                        }
-                    }, 45000);
-                }
-            } else {
-                io.to(socket.roomId).emit('zombieHit', { id: data.id, hp: z.hp, maxHp: z.maxHp });
             }
         }
-    }
-});
+    });
     
     socket.on('disconnect', () => {
         if (socket.roomId && rooms[socket.roomId]) {
