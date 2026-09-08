@@ -558,7 +558,14 @@
             let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
             const faceTex = info.type === 'boss' ? faceBoss : (info.type === 'kuat' ? faceKuat : faceKroco);
             const matBody = new THREE.MeshStandardMaterial({ color: color });
-            const matHead = [ new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({color: color}), new THREE.MeshStandardMaterial({map: faceTex}) ];
+         const matHead = [
+                new THREE.MeshStandardMaterial({color: color}), // Kanan
+                new THREE.MeshStandardMaterial({color: color}), // Kiri
+                new THREE.MeshStandardMaterial({color: color}), // Atas
+                new THREE.MeshStandardMaterial({color: color}), // Bawah
+                new THREE.MeshStandardMaterial({map: faceTex}), // Depan (Tukar ke index ini jika tadinya di belakang)
+                new THREE.MeshStandardMaterial({color: color})  // Belakang
+            ];
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
