@@ -912,7 +912,7 @@
             playGunSound(wId); 
             socket.emit('playerShootVisual');
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-           // --- RECOIL BERSIH KHUSUS SENJATA & CROSSHAIR (KAMERA DIJAMIN AMAN TEGAK) ---
+     // --- RECOIL BERSIH KHUSUS SENJATA & CROSSHAIR (KAMERA DIJAMIN AMAN TEGAK) ---
            // Kita kasih efek nendang ke atas lewat posisi senjata (gunGroup) biar gak ngerusak sudut pandang kamera
            gunGroup.position.z += 0.3; 
            setTimeout(() => { gunGroup.position.z = -2.5; }, 80);
