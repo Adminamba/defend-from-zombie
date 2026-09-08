@@ -147,9 +147,15 @@ setInterval(() => {
                     let baseDmg = z.type === 'boss' ? 6 : (z.type === 'kuat' ? 3 : 1);
                     let dmg = baseDmg + Math.floor(room.level * 0.5);
 
-                    if (targetType === 'player') {
+                   if (targetType === 'player') {
                         target.hp -= dmg;
-                        io.to(roomId).emit('playerHpUpdate', { id: target.id, hp: target.hp });
+                        if (target.hp <= 0 && !target.isDowned) {
+                            target.isDowned = true;
+                            target.hp = 0;
+                            io.to(roomId).emit('playerDowned', { id: target.id });
+                        } else if (!target.isDowned) {
+                            io.to(roomId).emit('playerHpUpdate', { id: target.id, hp: target.hp });
+                        }
                         io.to(roomId).emit('spawnDamageIndicator', { x: target.x, y: target.y + 2, z: target.z, dmg: dmg, color: '#ff0000' });
                     } else {
                         // Serang Api Unggun (Campfire)
@@ -186,10 +192,10 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         socket.roomId = roomId;
 
-        room.players[socket.id] = {
+       room.players[socket.id] = {
             id: socket.id, username: username || 'Player',
             x: (Math.random() - 0.5) * 10, y: 5.5, z: 20 + (Math.random() - 0.5) * 10,
-            rotationY: 0, hp: 100, color: Math.floor(Math.random()*16777215)
+            rotationY: 0, hp: 100, isDowned: false, color: Math.floor(Math.random()*16777215)
         };
         
         socket.emit('initGameData', { 
@@ -201,12 +207,12 @@ io.on('connection', (socket) => {
         io.emit('roomListUpdated');
     });
 
-    socket.on('requestRespawn', () => {
+  socket.on('requestRespawn', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
             let p = room.players[socket.id];
             if (p) {
-                p.hp = 100; p.x = (Math.random() - 0.5) * 10; p.z = 20 + (Math.random() - 0.5) * 10;
+                p.hp = 100; p.isDowned = false; p.x = (Math.random() - 0.5) * 10; p.z = 20 + (Math.random() - 0.5) * 10;
                 io.to(socket.roomId).emit('playerHpUpdate', { id: socket.id, hp: 100 });
                 socket.emit('respawnApproved', p);
             }
@@ -341,6 +347,72 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+let reviveProgressMap = {};
+
+    socket.on('holdingRevive', (data) => {
+        let roomId = socket.roomId;
+        if (!roomId || !rooms[roomId]) return;
+        let room = rooms[roomId];
+        let targetPlayer = room.players[data.targetId];
+
+        if (targetPlayer && targetPlayer.isDowned) {
+            let reviver = room.players[socket.id];
+            let dist = Math.hypot(reviver.x - targetPlayer.x, reviver.z - targetPlayer.z);
+            
+            if (dist < 6.0) {
+                if (!reviveProgressMap[data.targetId]) reviveProgressMap[data.targetId] = 0;
+                reviveProgressMap[data.targetId] += 3.33; // ~3 detik untuk menyelesaikan bar (100%)
+
+                io.to(roomId).emit('reviveProgress', { targetId: data.targetId, progress: reviveProgressMap[data.targetId] });
+
+                if (reviveProgressMap[data.targetId] >= 100) {
+                    delete reviveProgressMap[data.targetId];
+                    targetPlayer.isDowned = false;
+                    targetPlayer.hp = 30; // Bangkit dengan 30 HP
+
+                    // REWARD TEAMWORK: Berikan +75 Personal XP ke yang merevive
+                    reviver.xp = (reviver.xp || 0) + 75;
+                    
+                    let pXp = reviver.xp;
+                    let pLv = reviver.level || 1;
+                    // Sinkronisasi level otomatis sederhana jika naik
+                    if (pXp >= 6500) pLv = 10;
+                    else if (pXp >= 5200) pLv = 9;
+                    else if (pXp >= 4000) pLv = 8;
+                    else if (pXp >= 3000) pLv = 7;
+                    else if (pXp >= 2200) pLv = 6;
+                    else if (pXp >= 1500) pLv = 5;
+                    else if (pXp >= 1000) pLv = 4;
+                    else if (pXp >= 600) pLv = 3;
+                    else if (pXp >= 250) pLv = 2;
+                    reviver.level = pLv;
+
+                    io.to(socket.id).emit('syncPersonalXp', { xp: reviver.xp, level: reviver.level });
+                    io.to(roomId).emit('revived', { id: targetPlayer.id, hp: targetPlayer.hp });
+                }
+            }
+        }
+    });
+
+    socket.on('stopRevive', () => {
+        for (let targetId in reviveProgressMap) {
+            reviveProgressMap[targetId] = 0;
+            if (socket.roomId) io.to(socket.roomId).emit('reviveProgress', { targetId: targetId, progress: 0 });
+        }
+    });
+
+    socket.on('forceSpectator', () => {
+        let roomId = socket.roomId;
+        if (roomId && rooms[roomId]) {
+            let player = rooms[roomId].players[socket.id];
+            if (player) {
+                player.isDowned = false;
+                player.hp = 0;
+                io.to(socket.id).emit('enterSpectator');
+            }
+        }
+    });
 
 const PORT = process.env.PORT || 8080;
 http.listen(PORT, '0.0.0.0', () => { console.log(`Server jalan di port ${PORT}`); });
