@@ -268,6 +268,10 @@
 
         let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
         let isReloading = false;
+        let targetRecoilPitch = 0;
+        let targetRecoilYaw = 0;
+        let currentRecoilPitch = 0;
+        let currentRecoilYaw = 0;
 
         const WEAPONS = {
             'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, xpPrice: 0, reqLevel: 1, maxLv: 5, magSize: Infinity, reserve: Infinity, reloadTime: 0 },
@@ -912,34 +916,27 @@
             playGunSound(wId); 
             socket.emit('playerShootVisual');
             muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-     // --- RECOIL BERSIH KHUSUS SENJATA & CROSSHAIR (KAMERA DIJAMIN AMAN TEGAK) ---
-           // Kita kasih efek nendang ke atas lewat posisi senjata (gunGroup) biar gak ngerusak sudut pandang kamera
-           gunGroup.position.z += 0.3; 
-           setTimeout(() => { gunGroup.position.z = -2.5; }, 80);
-           
-           // Dorong sedikit rotasi pitch kamera ke atas secara absolut tanpa sentuh roll/yaw
-           camera.rotation.x += (wInfo.baseDmg * 0.002);
-           
-           // KUNCI MATI SEMUA KEMIRINGAN
-           camera.rotation.z = 0;
-           if (controls && controls.getObject()) {
-               controls.getObject().rotation.z = 0;
-           }
+   // --- HAPUS SEMUA KODE camera.rotation DI SINI ---
             
+            socket.emit('playerShootVisual');
+            muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+            
+            // Animasi senjata nendang ke belakang
+            gunGroup.position.z = -2.2; 
+            setTimeout(() => { gunGroup.position.z = -2.5; }, 50);
+
             const crosshair = document.getElementById('crosshair');
             if(crosshair) {
                 crosshair.classList.add('recoil');
                 setTimeout(() => crosshair.classList.remove('recoil'), 100);
             }
-       // Ambil arah pandangan kamera saat ini, lalu dorong sedikit ke atas secara lokal
-           let recoilPitch = wInfo.baseDmg * 0.0035;
-           
-           // Gunakan pitch object dari controls jika ada, atau geser rotasi X dengan aman
-           if (controls && controls.getObject()) {
-               camera.rotation.x += recoilPitch;
-               // Pastikan sumbu Z (roll) dikunci mati di angka 0 agar tidak pernah miring
-               camera.rotation.z = 0;
-           }
+            
+            // --- SISTEM RECOIL FPS BARU (Murni Offset) ---
+            // Nendang ke atas (Pitch) sesuai damage senjata
+            targetRecoilPitch += wInfo.baseDmg * 0.002;
+            
+            // Sedikit geser ke kiri/kanan secara acak (Yaw)
+            targetRecoilYaw += (Math.random() - 0.5) * wInfo.baseDmg * 0.0005;
 
             for (let i = 0; i < wInfo.bullets; i++) {
                 let startPos = camera.position.clone();
@@ -1221,6 +1218,39 @@
                 let currentRotY = Math.atan2(camDir.x, camDir.z) + Math.PI;
 
                 socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
+
+                // --- PROSES SMOOTH RECOIL & RECOVERY ---
+                let pitchDiff = targetRecoilPitch - currentRecoilPitch;
+                let yawDiff = targetRecoilYaw - currentRecoilYaw;
+                
+                let pitchStep = pitchDiff * 15 * delta; 
+                let yawStep = yawDiff * 15 * delta;
+                
+                currentRecoilPitch += pitchStep;
+                currentRecoilYaw += yawStep;
+                
+                // Jika sedang ada efek recoil
+                if (Math.abs(pitchStep) > 0.0001 || Math.abs(yawStep) > 0.0001) {
+                    // KUNCI UTAMA: Gunakan Euler urutan YXZ agar TIDAK PERNAH ADA ROLL (Kamera Miring)
+                    let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                    euler.setFromQuaternion(camera.quaternion);
+                    
+                    euler.x += pitchStep; 
+                    euler.y += yawStep;   
+                    
+                    // KUNCI UTAMA 2: Batasi pitch agar kamera TIDAK BISA JUNGKIR BALIK (maksimal menengadah tegak lurus)
+                    const PI_2 = Math.PI / 2 - 0.01;
+                    euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+                    
+                    // Kembalikan ke Quaternion milik PointerLockControls
+                    camera.quaternion.setFromEuler(euler);
+                }
+                
+                // Recovery: Tarik aim perlahan kembali ke posisi normal kalau sudah berhenti nembak
+                if (!isShooting) {
+                    targetRecoilPitch = THREE.MathUtils.lerp(targetRecoilPitch, 0, 8 * delta);
+                    targetRecoilYaw = THREE.MathUtils.lerp(targetRecoilYaw, 0, 8 * delta);
+                }
             }
 
             let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
