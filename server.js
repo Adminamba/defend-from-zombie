@@ -337,18 +337,8 @@ io.on('connection', (socket) => {
             }
         }
     });
-    
-    socket.on('disconnect', () => {
-        if (socket.roomId && rooms[socket.roomId]) {
-            let room = rooms[socket.roomId];
-            delete room.players[socket.id];
-            io.to(socket.roomId).emit('playerLeft', socket.id);
-            if (Object.keys(room.players).length === 0) { delete rooms[socket.roomId]; io.emit('roomListUpdated'); }
-        }
-    });
-});
 
-let reviveProgressMap = {};
+    let reviveProgressMap = {};
 
     socket.on('holdingRevive', (data) => {
         let roomId = socket.roomId;
@@ -413,6 +403,18 @@ let reviveProgressMap = {};
             }
         }
     });
+
+    
+    socket.on('disconnect', () => {
+        if (socket.roomId && rooms[socket.roomId]) {
+            let room = rooms[socket.roomId];
+            delete room.players[socket.id];
+            io.to(socket.roomId).emit('playerLeft', socket.id);
+            if (Object.keys(room.players).length === 0) { delete rooms[socket.roomId]; io.emit('roomListUpdated'); }
+        }
+    });
+});
+
 
 const PORT = process.env.PORT || 8080;
 http.listen(PORT, '0.0.0.0', () => { console.log(`Server jalan di port ${PORT}`); });
