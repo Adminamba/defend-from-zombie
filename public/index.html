@@ -773,9 +773,7 @@
         }
 
         window.buyWeapon = function(key) {
-               myXp += 50000; myLevel = 10;
-            document.getElementById('my-xp').innerText = myXp;
-            document.getElementById('my-level').innerText = myLevel;
+              
             let w = WEAPONS[key];
             if (myLevel >= w.reqLevel) {
                 if (myXp >= w.xpPrice) {
