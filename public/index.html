@@ -773,11 +773,9 @@
         }
 
         window.buyWeapon = function(key) {
-         
-
-            let w = WEAPONS[key];
-            if (myLevel >= w.reqLevel) {
-                // ... sisa kode di bawahnya biarkan saja
+               myXp += 50000; myLevel = 10;
+            document.getElementById('my-xp').innerText = myXp;
+            document.getElementById('my-level').innerText = myLevel;
             let w = WEAPONS[key];
             if (myLevel >= w.reqLevel) {
                 if (myXp >= w.xpPrice) {
