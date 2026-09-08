@@ -110,6 +110,26 @@
         .shop-btn { background: #00ff00; color: #000; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
         .shop-btn:hover { background: #fff; }
         .shop-btn.disabled { background: #555; cursor: not-allowed; color: #aaa; }
+
+
+
+        /* DOWNED & REVIVE UI */
+        #downed-ui {
+            position: absolute; top: 30%; width: 100%; text-align: center; color: #ff3333; font-size: 28px; font-weight: bold; z-index: 150;
+            text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
+        }
+        #revive-prompt {
+            position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
+            color: #00ff00; font-size: 20px; font-weight: bold; z-index: 150; display: none;
+            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; border: 1px solid #00ff00;
+        }
+        #revive-progress-container {
+            position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 20px; background: rgba(0,0,0,0.7); border: 2px solid #fff; border-radius: 10px; z-index: 150; overflow: hidden; display: none;
+        }
+        #revive-progress-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.1s linear; }
+
+        
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
@@ -125,8 +145,13 @@
     </div>
     
     <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
-    <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
+    <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Campfire <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
+
+    <!-- UI DOWNED & REVIVE -->
+    <div id="downed-ui">KAMU TERBARING LEMAH (DOWNED)!<br><span style="font-size:16px; color:#fff;">Tunggu teman melakukan Revive (Tahan C di dekatmu) atau kehabisan darah dalam <span id="bleed-timer">30</span>s</span></div>
+    <div id="revive-prompt">Tahan [ C ] untuk Revive Teman</div>
+    <div id="revive-progress-container"><div id="revive-progress-bar"></div></div>
     
     <!-- UI EKONOMI GANDA -->
     <div id="team-coin-display">🪙 Team Coin: <span id="team-coin">0</span></div>
@@ -203,6 +228,10 @@
         let damageIndicators = [];
         let myHp = 100;
         let swayTime = 0;
+        let isDowned = false;
+        let bleedInterval = null;
+        let reviveTargetId = null;
+        let isHoldingC = false;
         let isInventoryOpen = false;
         let activeQuickSlot = 0; 
         let isPaused = true;
@@ -486,6 +515,7 @@
             document.getElementById('ammo-display').style.display = 'block';
             document.getElementById('death-screen').style.display = 'none';
             document.getElementById('spectator-ui').style.display = 'none';
+            document.getElementById('downed-ui').style.display = 'none'; // Tambahan baris ini
             camera.position.set(pData.x, 5.5, pData.z);
             camera.rotation.set(0, 0, 0); 
             gunGroup.visible = true;
@@ -751,6 +781,84 @@
                     spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
                 }
             }
+        });
+
+        socket.on('playerDowned', (data) => {
+            if (data.id === socket.id) {
+                isDowned = true;
+                myHp = 0;
+                updateUI();
+                document.getElementById('quickbar-container').style.display = 'none';
+                document.getElementById('ammo-display').style.display = 'none';
+                document.getElementById('crosshair').style.display = 'none';
+                document.getElementById('downed-ui').style.display = 'block';
+                camera.position.y = 2.0; 
+                gunGroup.visible = false;
+                
+                let bleedTime = 30;
+                document.getElementById('bleed-timer').innerText = bleedTime;
+                if (bleedInterval) clearInterval(bleedInterval);
+                bleedInterval = setInterval(() => {
+                    bleedTime--;
+                    let btElem = document.getElementById('bleed-timer');
+                    if (btElem) btElem.innerText = bleedTime;
+                    if (bleedTime <= 0) {
+                        clearInterval(bleedInterval);
+                        socket.emit('forceSpectator');
+                        document.getElementById('downed-ui').style.display = 'none';
+                    }
+                }, 1000);
+            } else if (otherPlayers[data.id]) {
+                otherPlayers[data.id].userData.isDowned = true;
+                otherPlayers[data.id].userData.hp = 0;
+                updatePlayerLabel(otherPlayers[data.id]);
+            }
+        });
+
+        socket.on('enterSpectator', () => {
+            // Memicu layar spectator murni jika waktu habis tanpa direvive
+            isSpectating = true;
+            controls.unlock();
+            document.getElementById('ui').style.display = 'none';
+            document.getElementById('flashlight-info').style.display = 'none';
+            document.getElementById('death-screen').style.display = 'flex';
+            document.getElementById('spectator-ui').style.display = 'block';
+            spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
+            spectateIndex = 0;
+            
+            let timeLeft = 60;
+            document.getElementById('countdown').innerText = timeLeft;
+            const btnRespawn = document.getElementById('btn-respawn');
+            btnRespawn.disabled = true; btnRespawn.style.background = '#555';
+            if (respawnInterval) clearInterval(respawnInterval);
+            respawnInterval = setInterval(() => {
+                timeLeft--;
+                let cd = document.getElementById('countdown');
+                if (cd) cd.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(respawnInterval);
+                    btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer';
+                }
+            }, 1000);
+        });
+
+        socket.on('reviveProgress', (data) => {
+            if (data.targetId === socket.id) {
+                document.getElementById('revive-progress-container').style.display = 'block';
+                document.getElementById('revive-progress-bar').style.width = data.progress + '%';
+            }
+        });
+
+        socket.on('revived', (pData) => {
+            document.getElementById('quickbar-container').style.display = 'flex';
+            document.getElementById('ammo-display').style.display = 'block';
+            document.getElementById('downed-ui').style.display = 'none';
+            document.getElementById('revive-progress-container').style.display = 'none';
+            camera.position.y = 5.5;
+            gunGroup.visible = true;
+            if (flashlightOn) flashlight.visible = true;
+            myHp = pData.hp; isDowned = false; updateUI();
+            controls.lock();
         });
 
         function addOtherPlayer(info) {
@@ -1056,6 +1164,10 @@
                 return;
             }
 
+            if (e.code === 'KeyC' && !isDowned && !isSpectating) {
+                isHoldingC = true;
+            }
+
             if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
                 isReloading = false;
                 if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
@@ -1086,6 +1198,11 @@
             if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
             if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
             if (e.code === 'ShiftLeft') isSprinting = false;
+            if (e.code === 'KeyC') {
+                isHoldingC = false;
+                document.getElementById('revive-progress-container').style.display = 'none';
+                socket.emit('stopRevive');
+            }
         });
 
         let prevTime = performance.now();
@@ -1173,6 +1290,29 @@
                 let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
                 d.mesh.rotation.x += d.rx * delta; d.mesh.rotation.y += d.ry * delta; d.mesh.rotation.z += d.rz * delta;
                 if (d.mesh.position.y < 0) { scene.remove(d.mesh); debris.splice(i, 1); }
+            }
+
+            // Cek apakah player berdiri dekat dengan player lain yang downed untuk Revive
+            if (!isDowned && !isSpectating && controls.isLocked) {
+                let foundDowned = null;
+                for (let pid in otherPlayers) {
+                    let p = otherPlayers[pid];
+                    if (p.userData.isDowned && camera.position.distanceTo(p.position) < 4.0) {
+                        foundDowned = pid;
+                        break;
+                    }
+                }
+                if (foundDowned) {
+                    reviveTargetId = foundDowned;
+                    document.getElementById('revive-prompt').style.display = 'block';
+                    if (isHoldingC) {
+                        socket.emit('holdingRevive', { targetId: reviveTargetId });
+                    }
+                } else {
+                    reviveTargetId = null;
+                    document.getElementById('revive-prompt').style.display = 'none';
+                    document.getElementById('revive-progress-container').style.display = 'none';
+                }
             }
 
             if (isSpectating) {
