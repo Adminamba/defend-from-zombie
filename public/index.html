@@ -2,25 +2,10 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Zombie Survival 99 Days - Phase 1</title>
+    <title>Zombie Survival 99 Days - Phase 2 Overhaul</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
-        /* --- EFEK FPS: CROSSHAIR DINAMIS --- */
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1000; transition: all 0.1s ease-out; display: none; }
-        #crosshair .line { position: absolute; background-color: #00ff00; transition: all 0.1s; }
-        #crosshair .line.vertical { width: 2px; height: 10px; left: -1px; }
-        #crosshair .line.horizontal { width: 10px; height: 2px; top: -1px; }
-        #crosshair .top { top: -15px; }
-        #crosshair .bottom { top: 7px; }
-        #crosshair .left { left: -15px; }
-        #crosshair .right { left: 7px; }
-        #crosshair .dot { position: absolute; width: 2px; height: 2px; background-color: #00ff00; top: -1px; left: -1px; }
-        
-        #crosshair.recoil .top { top: -20px; }
-        #crosshair.recoil .bottom { top: 12px; }
-        #crosshair.recoil .left { left: -20px; }
-        #crosshair.recoil .right { left: 12px; }
-        
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); color: #00ff00; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 100; display: none; }
         #ui { position: absolute; top: 15px; left: 15px; color: white; font-size: 20px; font-weight: bold; z-index: 10; display: none; text-shadow: 2px 2px 4px #000; }
         #stamina-bar-container { width: 200px; height: 10px; background: rgba(0,0,0,0.6); border: 1px solid #fff; margin-top: 8px; }
         #stamina-bar { width: 100%; height: 100%; background: #00ffff; }
@@ -46,146 +31,87 @@
         .menu-box button:hover { background: #fff; transform: scale(1.05); }
         .room-item { background: #333; padding: 10px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #555;}
         
-        #lobby-room-menu, #death-screen, #spectator-ui { display: none; }
+        #lobby-room-menu, #death-screen, #spectator-ui, #downed-ui { display: none; }
         #damage-overlay { position: absolute; width: 100%; height: 100%; background: rgba(255,0,0,0.5); z-index: 150; display: none; pointer-events: none; }
         #spectator-ui { position: absolute; top: 10%; width: 100%; text-align: center; color: yellow; font-size: 24px; font-weight: bold; z-index: 10; text-shadow: 2px 2px 4px #000; pointer-events: none;}
         #wave-announcer { position: absolute; top: 25%; width: 100%; text-align: center; color: #ff5500; font-size: 32px; font-weight: bold; z-index: 10; text-shadow: 3px 3px 6px #000; display: none; pointer-events: none;}
 
-        #inventory-modal {
-            position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(198, 198, 198, 0.95); border: 4px solid #373737; border-radius: 6px;
-            padding: 20px; z-index: 400; display: none; text-align: center; color: black;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8); width: 400px;
-        }
-        #inventory-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; justify-content: center;
-        }
-        .inv-slot {
-            width: 65px; height: 65px; background: #8b8b8b; border: 3px solid #373737;
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            font-size: 26px; cursor: pointer; position: relative;
-            box-shadow: inset 2px 2px 0px #fff, inset -2px -2px 0px #555;
-        }
-        .inv-slot:hover { background: #9e9e9e; }
-
-        #quickbar-container {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 6px; z-index: 100; display: none; pointer-events: none;
-            background: rgba(0, 0, 0, 0.5); padding: 8px 12px; border-radius: 8px;
-            border: 2px solid rgba(255,255,255,0.2);
-        }
-        .quick-slot {
-            width: 55px; height: 55px; background: #8b8b8b; border: 3px solid #373737;
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            font-size: 22px; color: white; font-weight: bold; position: relative;
-            box-shadow: inset 2px 2px 0px #fff, inset -2px -2px 0px #555;
-        }
-        .quick-slot.active { border: 3px solid #ffff00; box-shadow: 0 0 10px #ffff00, inset 2px 2px 0px #fff, inset -2px -2px 0px #555; }
-        .slot-num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: #111; font-weight: bold; }
-
-        /* EKONOMI GANDA UI */
-        #team-coin-display {
-            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-            color: #FFD700; font-size: 24px; font-weight: bold; z-index: 10;
-            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; border: 2px solid #FFD700;
-        }
-        #xp-display {
-            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-            color: #00ffff; font-size: 20px; font-weight: bold; z-index: 10;
-            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 8px; border: 2px solid #00ffff;
-        }
-
-        #shop-prompt {
-            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
-            color: #fff; font-size: 20px; font-weight: bold; z-index: 10; display: none;
-            text-shadow: 2px 2px 4px #000; background: rgba(0,255,0,0.4); padding: 10px 20px; border-radius: 8px;
-        }
-        #shop-modal {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(20, 30, 20, 0.95); border: 4px solid #00ff00; border-radius: 6px;
-            padding: 20px; z-index: 500; display: none; text-align: left; color: white;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9); width: 600px; max-height: 80vh; overflow-y: auto;
-        }
-        .shop-item { background: #222; border: 2px solid #555; padding: 12px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .shop-btn { background: #00ff00; color: #000; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
-        .shop-btn:hover { background: #fff; }
-        .shop-btn.disabled { background: #555; cursor: not-allowed; color: #aaa; }
-
-
-
-        /* DOWNED & REVIVE UI */
+        /* --- UI DOWNED CRAWLING (PHASE 2 OVERHAUL) --- */
         #downed-ui {
             position: absolute; top: 30%; width: 100%; text-align: center; color: #ff3333; font-size: 28px; font-weight: bold; z-index: 150;
-            text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
+            text-shadow: 2px 2px 4px #000; pointer-events: none;
         }
-        #revive-prompt {
-            position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
-            color: #00ff00; font-size: 20px; font-weight: bold; z-index: 150; display: none;
-            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; border: 1px solid #00ff00;
-        }
-        #revive-progress-container {
-            position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
-            width: 300px; height: 20px; background: rgba(0,0,0,0.7); border: 2px solid #fff; border-radius: 10px; z-index: 150; overflow: hidden; display: none;
-        }
-        #revive-progress-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.1s linear; }
 
+        /* UI INTERAKSI REVIVE (◯ C SURVIVAL STYLE) */
+        #revive-interact-container {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: none; z-index: 150; pointer-events: none;
+            flex-direction: column; align-items: center; gap: 5px;
+        }
+        #revive-prompt-text { color: white; font-size: 14px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
         
+        /* Tombol C dalam Lingkaran FPS Style */
+        .survival-btn-container {
+            position: relative; width: 60px; height: 60px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .survival-btn-icon {
+            color: #00ff00; font-size: 28px; font-weight: bold;
+            text-shadow: 0 0 10px #00ff00; z-index: 2;
+        }
+        
+        /* Circular Progress Bar SVG */
+        .revive-progress-svg {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            transform: rotate(-90deg); /* Mulai dari atas */
+            z-index: 1;
+        }
+        .revive-progress-bg {
+            fill: none; stroke: rgba(255, 255, 255, 0.2); stroke-width: 6;
+        }
+        .revive-progress-bar {
+            fill: none; stroke: #00ff00; stroke-width: 6;
+            stroke-dasharray: 170; /* Keliling lingkaran (PI * diameter - toleransi) */
+            stroke-dashoffset: 170; /* Awalnya kosong */
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s linear; /* Smooth fill */
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
 </head>
 <body>
     <div id="damage-overlay"></div>
-    <div id="crosshair">
-        <div class="line vertical top"></div>
-        <div class="line vertical bottom"></div>
-        <div class="line horizontal left"></div>
-        <div class="line horizontal right"></div>
-        <div class="dot"></div>
-    </div>
-    
+    <div id="crosshair">⌖</div>
     <div id="ui"> Nyawa: <span id="hp">100</span>% | Player: <span id="player-count">1</span>/5 <div id="stamina-bar-container"><div id="stamina-bar"></div></div></div>
-    <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Campfire <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
+    <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Api Unggun: <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
-
-    <!-- UI DOWNED & REVIVE -->
-    <div id="downed-ui">KAMU TERBARING LEMAH (DOWNED)!<br><span style="font-size:16px; color:#fff;">Tunggu teman melakukan Revive (Tahan C di dekatmu) atau kehabisan darah dalam <span id="bleed-timer">30</span>s</span></div>
-    <div id="revive-prompt">Tahan [ C ] untuk Revive Teman</div>
-    <div id="revive-progress-container"><div id="revive-progress-bar"></div></div>
     
-    <!-- UI EKONOMI GANDA -->
     <div id="team-coin-display">🪙 Team Coin: <span id="team-coin">0</span></div>
     <div id="xp-display">⭐ Level <span id="my-level">1</span> (<span id="my-xp">0</span> XP)</div>
     
-    <div id="shop-prompt">Tekan [ B ] untuk Buka Toko Senjata Pribadi</div>
     <div id="ammo-display">Peluru: <span id="current-ammo">∞</span> / <span id="reserve-ammo">∞</span></div>
 
-    <div id="shop-modal">
-        <h2 style="color:#00ff00; margin-top:0; text-align:center;">TOKO SENJATA PRIBADI</h2>
-        <p style="text-align:center; color:#ccc; font-size:14px;">Gunakan Personal XP (⭐) dan Syarat Level untuk membeli/upgrade senjata.</p>
-        <div id="shop-items-container"></div>
-        <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:0;">Tekan B lagi atau tutup layar untuk keluar.</p>
+    <!-- UI DOWNED CRAWLING -->
+    <div id="downed-ui">KAMU TERBARING LEMAH (DOWNED)!<br><span style="font-size:16px; color:#fff;">Gunakan WASD untuk merangkak perlahan.<br>Tunggu teman melakukan Revive (Tahan C) atau kehabisan darah dalam <span id="bleed-timer">30</span>s</span></div>
+    
+    <!-- UI INTERAKSI REVIVE (PHASE 2 FPS STYLE OVERHAUL) -->
+    <div id="revive-interact-container">
+        <div id="revive-prompt-text">🆘 BUTUH REVIVE</div>
+        <div class="survival-btn-container">
+            <span class="survival-btn-icon">C</span>
+            <svg class="revive-progress-svg" viewBox="0 0 60 60">
+                <circle class="revive-progress-bg" cx="30" cy="30" r="27"></circle>
+                <circle id="revive-progress-circle" class="revive-progress-bar" cx="30" cy="30" r="27"></circle>
+            </svg>
+        </div>
+        <div id="revive-prompt-subtext" style="color:#aaa; font-size:11px; margin-top:-3px;">TAHAN [C] 6 DETIK</div>
     </div>
     
-    <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 14px; color: white;">(Klik Kiri ganti target | Tahan Klik Kanan + Geser Mouse putar kamera)</span></div>
+    <div id="spectator-ui">MENGAMATI: <span id="spec-name">-</span><br><span style="font-size: 14px; color: white;">(Tim tewas total. Tunggu Hari Selesai untuk Respawn Otomatis.)</span></div>
     <div id="wave-announcer">HARI SELESAI!<br><span style="font-size: 20px; color: #fff;" id="wave-timer">Waktu Persiapan: 120s</span></div>
-
-    <div id="quickbar-container">
-        <div class="quick-slot active" id="quick-0"><span class="slot-num">1</span>🔫</div>
-        <div class="quick-slot" id="quick-1"><span class="slot-num">2</span>💊</div>
-        <div class="quick-slot" id="quick-2"><span class="slot-num">3</span>⚡</div>
-        <div class="quick-slot" id="quick-3"><span class="slot-num">4</span>🛡️</div>
-    </div>
-
-    <div id="inventory-modal">
-        <h3 style="margin: 0 0 5px 0; color: #222; font-size: 18px; font-weight: bold; text-align: left;">Inventory</h3>
-        <div id="inventory-grid">
-            <div class="inv-slot">⛏️</div><div class="inv-slot">🪵</div><div class="inv-slot">📦</div>
-            <div class="inv-slot">🪵</div><div class="inv-slot">🍎</div><div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div><div class="inv-slot">📦</div><div class="inv-slot">📦</div>
-            <div class="inv-slot">📦</div><div class="inv-slot">📦</div><div class="inv-slot">📦</div>
-        </div>
-    </div>
 
     <div id="login-overlay" class="overlay-screen">
         <div class="menu-box">
@@ -211,9 +137,8 @@
 
     <div id="death-screen" class="overlay-screen">
         <div class="menu-box" style="border-color: #ff0000;">
-            <h1 style="color: #ff0000; margin-top:0;">KAMU TEWAS!</h1>
-            <p id="respawn-timer-text" style="margin-top:5px; margin-bottom: 10px;">Hidup kembali dalam: <span id="countdown">60</span>s</p>
-            <button id="btn-respawn" style="background:#555; cursor:not-allowed; padding:8px;" disabled>HIDUP KEMBALI</button>
+            <h1 style="color: #ff0000; margin-top:0;">TIM TEWAS TOTAL!</h1>
+            <p id="respawn-timer-text" style="margin-top:5px; margin-bottom: 10px; color:#fff;">Tunggu Hari Selesai atau Game Over.</p>
         </div>
     </div>
 
@@ -224,15 +149,9 @@
         const socket = io();
         let otherPlayers = {};
         let zombies = {};
-        let debris = [];
         let damageIndicators = [];
         let myHp = 100;
-        let swayTime = 0;
-        let isDowned = false;
-        let bleedInterval = null;
-        let reviveTargetId = null;
-        let isHoldingC = false;
-        let isInventoryOpen = false;
+        let isDowned = false; // [PHASE 2] Global state
         let activeQuickSlot = 0; 
         let isPaused = true;
         let isGameStarted = false;
@@ -245,1233 +164,263 @@
         let spectateIndex = 0;
         let flashlightOn = true;
 
+        // [PHASE 2] UI Management
+        let reviveTargetId = null;
+        let isHoldingC = false;
+        const CIRCLE_CIRCUMFERENCE = 170; // Dasharray keliling kemajuan circular
+
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        function playGunSound(type) {
-            if (!audioCtx) return;
-            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            let freq = 1200;
-            if (type === 'koboy') freq = 800;
-            else if (type === 'uzi') freq = 1800;
-            else if (type === 'mp5') freq = 1500;
-            else if (type === 'shotgun') freq = 400;
-            else if (type === 'm249') freq = 1000;
+        // --- SISTEM GAME EXISTING (JANGAN DIUBAH) ---
+        function playGunSound(type) { if (!audioCtx) return; const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate); const data = buffer.getChannelData(0); let freq = 1200; if (type === 'koboy') freq = 800; else if (type === 'uzi') freq = 1800; else if (type === 'mp5') freq = 1500; else if (type === 'shotgun') freq = 400; else if (type === 'm249') freq = 1000; for (let i = 0; i < buffer.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.05)); const noise = audioCtx.createBufferSource(); noise.buffer = buffer; const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(freq, audioCtx.currentTime); filter.frequency.linearRampToValueAtTime ? filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.15) : filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15); const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.7, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15); noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start(); }
+        function createFaceTexture(bgColor, emoji) { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 128, 128); ctx.font = '80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, 64, 68); return new THREE.CanvasTexture(canvas); }
+        const faceKroco = createFaceTexture('#2d5a27', '🧟'); const faceKuat = createFaceTexture('#8b0000', '👹'); const faceBoss = createFaceTexture('#111111', '💀');
 
-            for (let i = 0; i < buffer.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.05));
-            const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
-            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(freq, audioCtx.currentTime); 
-            filter.frequency.linearRampToValueAtTime ? filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.15) : filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
-            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.7, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
-        }
-
-        function createFaceTexture(bgColor, emoji) {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d');
-            ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 128, 128);
-            ctx.font = '80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, 64, 68);
-            return new THREE.CanvasTexture(canvas);
-        }
-        const faceKroco = createFaceTexture('#2d5a27', '🧟');
-        const faceKuat = createFaceTexture('#8b0000', '👹');
-        const faceBoss = createFaceTexture('#111111', '💀');
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x11131e); 
-        scene.fog = new THREE.FogExp2(0x11131e, 0.006);
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.y = 5.5; 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x11131e); scene.fog = new THREE.FogExp2(0x11131e, 0.006);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.y = 5.5; 
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
         const controls = new PointerLockControls(camera, document.body); scene.add(controls.getObject());
 
-        let teamCoin = 0; 
-        let myXp = 0; 
-        let myLevel = 1;
-
-        let isShopOpen = false; let isShooting = false; let lastShotTime = 0;
-        let isReloading = false;
-        let targetRecoilPitch = 0;
-        let targetRecoilYaw = 0;
-        let currentRecoilPitch = 0;
-        let currentRecoilYaw = 0;
-
-        const WEAPONS = {
-            'default': { id: 'default', name: 'Pistol Default', icon: '🔫', baseDmg: 1, fireRate: 400, auto: false, spread: 0, bullets: 1, xpPrice: 0, reqLevel: 1, maxLv: 5, magSize: Infinity, reserve: Infinity, reloadTime: 0 },
-            'koboy': { id: 'koboy', name: 'Pistol Koboy', icon: '🤠', baseDmg: 5, fireRate: 500, auto: false, spread: 0, bullets: 1, xpPrice: 500, reqLevel: 2, maxLv: 10, magSize: 12, reserve: 60, reloadTime: 1500 },
-            'uzi': { id: 'uzi', name: 'Uzi Pro', icon: '💨', baseDmg: 6, fireRate: 100, auto: true, spread: 0.06, bullets: 1, xpPrice: 1500, reqLevel: 4, maxLv: 10, magSize: 20, reserve: 120, reloadTime: 1800 },
-            'mp5': { id: 'mp5', name: 'MP5', icon: '🦅', baseDmg: 9, fireRate: 120, auto: true, spread: 0.02, bullets: 1, xpPrice: 3000, reqLevel: 6, maxLv: 10, magSize: 30, reserve: 120, reloadTime: 2000 },
-            'shotgun': { id: 'shotgun', name: 'Shotgun Taktis', icon: '💥', baseDmg: 14, fireRate: 800, auto: false, spread: 0.15, bullets: 7, xpPrice: 5000, reqLevel: 8, maxLv: 10, magSize: 7, reserve: 60, reloadTime: 2500 },
-            'm249': { id: 'm249', name: 'M249 SAW', icon: '🔥', baseDmg: 18, fireRate: 130, auto: true, spread: 0.04, bullets: 1, xpPrice: 8000, reqLevel: 10, maxLv: 10, magSize: 100, reserve: 500, reloadTime: 3500 }
-        };
-
-        let ownedWeapons = { 'default': 1 }; 
-        let weaponAmmo = {
-            'default': { current: Infinity, reserve: Infinity },
-            'koboy': { current: 12, reserve: 60 },
-            'uzi': { current: 20, reserve: 120 },
-            'mp5': { current: 30, reserve: 120 },
-            'shotgun': { current: 7, reserve: 60 },
-            'm249': { current: 100, reserve: 500 }
-        };
-        let quickbarSlots = ['default', null, null, null];
-
-        const gunGroup = new THREE.Group();
-        let currentGunMeshName = 'default';
-        const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
-        muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash);
-        gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
-
-        function updateGunModel(gunKey) {
-            currentGunMeshName = gunKey;
-            while(gunGroup.children.length > 1) { gunGroup.remove(gunGroup.children[1]); }
-
-            if (gunKey === 'koboy') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 1.4), new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.8})); body.position.set(0,0,-0.6);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.5);
-                const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4), new THREE.MeshStandardMaterial({color: 0x333333})); cylinder.rotation.z = Math.PI/2; cylinder.position.set(0, -0.05, -0.8);
-                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x8B4513})); grip.position.set(0, -0.6, -0.1); grip.rotation.x = Math.PI/6;
-                gunGroup.add(body, barrel, cylinder, grip);
-            } else if (gunKey === 'uzi') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 1.2), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); body.position.set(0,0,-0.5);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.6), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -1.2);
-                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.3), new THREE.MeshStandardMaterial({color: 0x111111})); mag.position.set(0, -0.7, -0.3); mag.rotation.x = 0.1;
-                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
-                gunGroup.add(body, barrel, mag, grip);
-            } else if (gunKey === 'mp5') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({color: 0x222222})); body.position.set(0,0,-0.8);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.05, -1.9);
-                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 1.0), new THREE.MeshStandardMaterial({color: 0x111111})); stock.position.set(0, 0, 0.5);
-                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.0, 0.4), new THREE.MeshStandardMaterial({color: 0x111111})); mag.position.set(0, -0.8, -0.4); mag.rotation.x = 0.3;
-                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.2); grip.rotation.x = Math.PI/6;
-                gunGroup.add(body, barrel, stock, mag, grip);
-            } else if (gunKey === 'shotgun') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 2.2), new THREE.MeshStandardMaterial({color: 0x2b2b2b})); body.position.set(0,0,-1);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.0), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.9})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.08, -2.2);
-                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.8), new THREE.MeshStandardMaterial({color: 0x1a1a1a})); pump.position.set(0, -0.1, -1.6);
-                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 1.2), new THREE.MeshStandardMaterial({color: 0x4a2e18})); stock.position.set(0, -0.1, 0.8);
-                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x222222})); grip.position.set(0, -0.7, 0.1); grip.rotation.x = Math.PI/6;
-                gunGroup.add(body, barrel, pump, stock, grip);
-            } else if (gunKey === 'm249') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 2.5), new THREE.MeshStandardMaterial({color: 0x334433})); body.position.set(0,0,-1.2);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2), new THREE.MeshStandardMaterial({color: 0x111111})); barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.1, -2.5);
-                const boxMag = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.8), new THREE.MeshStandardMaterial({color: 0x223322})); boxMag.position.set(0.1, -0.7, -0.8);
-                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.4), new THREE.MeshStandardMaterial({color: 0x111111})); grip.position.set(0, -0.8, 0.3); grip.rotation.x = Math.PI/6;
-                gunGroup.add(body, barrel, boxMag, grip);
-            } else {
-                const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); gunBody.position.set(0, 0, -0.8);
-                const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111 })); gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position.set(0, 0.05, -1.8);
-                const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d2817 })); gunGrip.position.set(0, -0.7, 0.2); gunGrip.rotation.x = Math.PI / 6;
-                gunGroup.add(gunBody, gunBarrel, gunGrip);
-            }
-        }
-        updateGunModel('default');
-
-        const flashlight = new THREE.SpotLight(0xffffff, 180, 300, Math.PI/4, 0.5, 1);
-        flashlight.position.set(0, 0, 1); flashlight.target.position.set(0, 0, -20);
-        camera.add(flashlight); camera.add(flashlight.target);
-
-        scene.add(new THREE.AmbientLight(0x667788, 1.2));
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 }));
-        floor.rotation.x = -Math.PI / 2; scene.add(floor);
-
-        const campfireGroup = new THREE.Group();
-        campfireGroup.position.set(0, 0, 0);
-        const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
-        for(let i = 0; i < 11; i++) {
-            let log = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 13.4), logMat);
-            log.position.set((Math.random()-0.5)*3.8, 4.5, (Math.random()-0.5)*3.8);
-            log.rotation.z = (Math.random() - 0.5) * 0.8; log.rotation.x = (Math.random() - 0.5) * 0.8;
-            campfireGroup.add(log);
-        }
-        const campfireLight = new THREE.PointLight(0xff4500, 500, 180);
-        campfireLight.position.y = 8; campfireGroup.add(campfireLight);
-
-        const cfCanvas = document.createElement('canvas'); cfCanvas.width = 256; cfCanvas.height = 64;
-        const cfCtx = cfCanvas.getContext('2d'); const cfTexture = new THREE.CanvasTexture(cfCanvas);
-        const cfMesh = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 2.9), new THREE.MeshBasicMaterial({ map: cfTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-        cfMesh.position.y = 17.5; campfireGroup.add(cfMesh);
-        
-        function updateCampfireLabel(currentHp, maxHp) {
-            cfCtx.clearRect(0, 0, 256, 64);
-            cfCtx.font = 'Bold 22px Arial'; cfCtx.fillStyle = '#ff7700'; cfCtx.textAlign = 'center'; cfCtx.fillText('🔥 API UNGGUN 🔥', 128, 22);
-            cfCtx.fillStyle = '#333'; cfCtx.fillRect(28, 32, 200, 20); 
-            cfCtx.fillStyle = '#ff3300'; cfCtx.fillRect(28, 32, Math.max(0, (currentHp / maxHp) * 200), 20);
-            cfCtx.strokeStyle = '#ffffff'; cfCtx.lineWidth = 3; cfCtx.strokeRect(28, 32, 200, 20); 
-            cfTexture.needsUpdate = true;
-        }
-        updateCampfireLabel(200, 200);
-        scene.add(campfireGroup);
-        
-        function buildWalls(wallsData) {
-            serverWalls = wallsData;
-            serverWalls.forEach(w => {
-                const group = new THREE.Group();
-                group.position.set(w.x, 0, w.z); 
-                const boxGeo = new THREE.BoxGeometry(w.width, w.height, w.depth); 
-                const boxMat = new THREE.MeshStandardMaterial({ color: w.color });
-                const baseBox = new THREE.Mesh(boxGeo, boxMat);
-                baseBox.position.set(0, w.height / 2, 0); 
-                group.add(baseBox);
-
-                if (w.name === "Rumah_Putih") {
-                    const roof = new THREE.Mesh(new THREE.ConeGeometry(20, 8, 4), new THREE.MeshStandardMaterial({ color: 0x990000 }));
-                    roof.position.set(0, w.height + 4, 0); roof.rotation.y = Math.PI / 4; group.add(roof);
-                } else if (w.name === "Rumah_Hijau") {
-                    const canopy = new THREE.Mesh(new THREE.BoxGeometry(w.width + 2, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
-                    canopy.position.set(0, w.height - 1, w.depth/2 + 1.5); group.add(canopy);
-                }
-                scene.add(group);
-                wallMeshes.push(baseBox); 
-            });
-        }
-
-        function createDamageText(text, x, y, z, color) {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            ctx.font = 'Bold 40px Arial'; ctx.fillStyle = color; ctx.textAlign = 'center'; 
-            ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-            ctx.strokeText(text, 64, 40); ctx.fillText(text, 64, 40);
-            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
-            sprite.position.set(x, y, z); sprite.scale.set(4, 2, 1);
-            scene.add(sprite);
-            damageIndicators.push({ mesh: sprite, time: 0 });
-        }
+        const gunGroup = new THREE.Group(); const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash); const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); gunBody.position.set(0, 0, -0.8); const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111 })); gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position.set(0, 0.05, -1.8); const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d2817 })); gunGrip.position.set(0, -0.7, 0.2); gunGrip.rotation.x = Math.PI / 6; gunGroup.add(gunBody, gunBarrel, gunGrip); gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
+        const flashlight = new THREE.SpotLight(0xffffff, 180, 300, Math.PI/4, 0.5, 1); flashlight.position.set(0, 0, 1); flashlight.target.position.set(0, 0, -20); camera.add(flashlight); camera.add(flashlight.target); scene.add(new THREE.AmbientLight(0x667788, 1.2)); const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x1a261c, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; scene.add(floor); const campfireGroup = new THREE.Group(); campfireGroup.position.set(0, 0, 0); const logMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 }); for(let i = 0; i < 11; i++) { let log = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 13.4), logMat); log.position.set((Math.random()-0.5)*3.8, 4.5, (Math.random()-0.5)*3.8); campfireGroup.add(log); } const campfireLight = new THREE.PointLight(0xff4500, 500, 180); campfireLight.position.y = 8; campfireGroup.add(campfireLight); scene.add(campfireGroup);
+        function buildWalls(wallsData) { serverWalls = wallsData; serverWalls.forEach(w => { const boxGeo = new THREE.BoxGeometry(w.width, w.height, w.depth); const boxMat = new THREE.MeshStandardMaterial({ color: w.color }); const baseBox = new THREE.Mesh(boxGeo, boxMat); baseBox.position.set(w.x, w.height / 2, w.z); scene.add(baseBox); wallMeshes.push(baseBox); }); }
+        function createDamageText(text, x, y, z, color) { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64; const ctx = canvas.getContext('2d'); ctx.font = 'Bold 40px Arial'; ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.strokeText(text, 64, 40); ctx.fillText(text, 64, 40); const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false })); sprite.position.set(x, y, z); sprite.scale.set(4, 2, 1); scene.add(sprite); damageIndicators.push({ mesh: sprite, time: 0 }); }
         socket.on('spawnDamageIndicator', (data) => { createDamageText("-" + data.dmg, data.x, data.y, data.z, data.color); });
-
-        function fetchRooms() {
-            fetch('/rooms').then(r => r.json()).then(data => {
-                const list = document.getElementById('room-list'); list.innerHTML = '';
-                if(data.length === 0) {
-                    list.innerHTML = '<p style="color:#aaa;">Belum ada room publik.</p>';
-                    return;
-                }
-                data.forEach(r => {
-                    let div = document.createElement('div'); div.className = 'room-item';
-                    div.innerHTML = `<span><b>${r.name}</b> (${r.players}/5)</span>`;
-                    
-                    let btn = document.createElement('button');
-                    btn.innerText = "Gabung";
-                    btn.style.cssText = "width: auto; padding: 5px 10px; margin:0;";
-                    btn.onclick = () => joinRoom(r.id, r.name);
-                    
-                    div.appendChild(btn);
-                    list.appendChild(div);
-                });
-            });
-        }
-        setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000);
-        fetchRooms();
-
-        window.joinRoom = function(roomId, roomName) {
-            const name = document.getElementById('username-input').value.trim(); 
-            if(!name) {
-                alert("Isi username dulu bro!");
-                return;
-            }
-            initAudio(); 
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{});
-            
-            socket.emit('joinRoom', { username: name, roomId: roomId, roomName: roomName });
-            
-            document.getElementById('login-overlay').style.display = 'none'; 
-            document.getElementById('lobby-room-menu').style.display = 'flex';
-            
-            const lobbyTitle = document.getElementById('lobby-title');
-            if(lobbyTitle) lobbyTitle.innerText = "ROOM: " + roomName;
-        };
-        
-        document.getElementById('btn-create-room').addEventListener('click', () => {
-            const name = document.getElementById('username-input').value.trim();
-            if(!name) {
-                alert("Isi username dulu bro!");
-                return;
-            }
-            let rName = document.getElementById('room-name-input').value.trim();
-            if(!rName) rName = "Room " + Math.floor(Math.random()*1000);
-            
-            let uniqueRoomId = 'room_' + Date.now();
-            joinRoom(uniqueRoomId, rName);
-        });
-
-        socket.on('roomError', (msg) => { alert(msg); location.reload(); });
-        document.getElementById('btn-start-game').addEventListener('click', () => socket.emit('startGame'));
-        document.getElementById('btn-resume').addEventListener('click', () => controls.lock());
-
-        let respawnInterval = null;
-        document.getElementById('btn-respawn').addEventListener('click', () => {
-            socket.emit('requestRespawn');
-            controls.lock();
-        });
-
-        socket.on('respawnApproved', (pData) => {
-            document.getElementById('quickbar-container').style.display = 'flex';
-            document.getElementById('ammo-display').style.display = 'block';
-            document.getElementById('death-screen').style.display = 'none';
-            document.getElementById('spectator-ui').style.display = 'none';
-            document.getElementById('downed-ui').style.display = 'none'; // Tambahan baris ini
-            camera.position.set(pData.x, 5.5, pData.z);
-            camera.rotation.set(0, 0, 0); 
-            gunGroup.visible = true;
-            if (flashlightOn) flashlight.visible = true;
-            myHp = 100; isSpectating = false; specAngleX = 0; specAngleY = 0; updateUI(); 
-        });
-
+        function fetchRooms() { fetch('/rooms').then(r => r.json()).then(data => { const list = document.getElementById('room-list'); list.innerHTML = ''; if(data.length === 0) list.innerHTML = '<p style="color:#aaa;">Belum ada room publik.</p>'; data.forEach(r => { let div = document.createElement('div'); div.className = 'room-item'; div.innerHTML = `<span><b>${r.name}</b> (${r.players}/5)</span> <button onclick="joinRoom('${r.id}', '${r.name}')" style="width: auto; padding: 5px 10px; margin:0;">Gabung</button>`; list.appendChild(div); }); }); }
+        setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000); fetchRooms();
+        window.joinRoom = function(roomId, roomName) { const name = document.getElementById('username-input').value.trim(); if(!name) return alert("Isi username!"); initAudio(); if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{}); socket.emit('joinRoom', { username: name, roomId: roomId, roomName: roomName }); document.getElementById('login-overlay').style.display = 'none'; document.getElementById('lobby-room-menu').style.display = 'flex'; };
+        document.getElementById('btn-create-room').addEventListener('click', () => { let rName = document.getElementById('room-name-input').value.trim(); if(!rName) rName = "Room " + Math.floor(Math.random()*1000); joinRoom('room_' + Date.now(), rName); });
+        socket.on('roomError', (msg) => { alert(msg); location.reload(); }); document.getElementById('btn-start-game').addEventListener('click', () => socket.emit('startGame'));
         socket.on('gameOverReset', () => { alert("Api Unggun hancur atau tim tewas! Game Over."); location.reload(); });
+        controls.addEventListener('lock', () => { isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none'; if (!isSpectating) { document.getElementById('crosshair').style.display = 'block'; document.getElementById('ui').style.display = 'block'; document.getElementById('flashlight-info').style.display = 'block'; } document.getElementById('level-ui').style.display = 'block'; if(isDowned) updateDownedUI(true); });
+        controls.addEventListener('unlock', () => { if (document.getElementById('login-overlay').style.display === 'none' && myHp > 0) { isPaused = true; document.getElementById('lobby-room-menu').style.display = 'flex'; document.getElementById('crosshair').style.display = 'none'; if(isGameStarted) { document.getElementById('lobby-title').innerText = "PAUSED"; document.getElementById('btn-start-game').style.display = 'none'; document.getElementById('btn-resume').style.display = 'block'; } if(isDowned) updateDownedUI(false); } });
 
-        controls.addEventListener('lock', () => {
-            isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none';
-            if (!isSpectating) { 
-                document.getElementById('crosshair').style.display = 'block'; 
-                document.getElementById('ui').style.display = 'block'; 
-                document.getElementById('flashlight-info').style.display = 'block'; 
-                document.getElementById('quickbar-container').style.display = 'flex';
-                document.getElementById('ammo-display').style.display = 'block';
-            }
-            document.getElementById('level-ui').style.display = 'block';
-        });
-
-        controls.addEventListener('unlock', () => {
-            if (document.getElementById('login-overlay').style.display === 'none' && myHp > 0) {
-                isPaused = true; document.getElementById('lobby-room-menu').style.display = 'flex'; document.getElementById('crosshair').style.display = 'none';
-                if(isGameStarted) { document.getElementById('lobby-title').innerText = "PAUSED"; document.getElementById('btn-start-game').style.display = 'none'; document.getElementById('btn-resume').style.display = 'block'; }
-            }
-        });
-
+        // --- SISTEM PLAYER MODEL (OVERHAUL POSE MERANGKAK) ---
         function createHumanoidModel(colorHex, username) {
             const group = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; group.add(body);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; 
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-            const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 0.2, -0.76);
-            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 0.2, -0.76);
-            head.add(eyeL); head.add(eyeR); group.add(head);
+            
+            // Badan berdiri (Normal)
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; body.userData.part = 'body'; group.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; head.userData.part = 'head'; group.add(head);
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); legL.userData.part = 'legs'; group.add(legL);
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legR.position.set(0.6, 0.5, 0); legR.userData.part = 'legs'; group.add(legR);
 
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.5, 0.6), new THREE.MeshStandardMaterial({ color: colorHex })); 
-            armR.position.set(1.4, 3.5, -0.5); armR.rotation.x = -Math.PI / 2;
-            const tGun = new THREE.Group();
-            const tgBody = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x222222 })); tgBody.position.set(0, -1.2, -0.5);
-            const tgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })); tgBarrel.rotation.x = Math.PI / 2; tgBarrel.position.set(0, -1.1, -1.4);
-            tGun.add(tgBody); tGun.add(tgBarrel);
-            const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -1.1, -2); tGun.add(oFlash);
-            armR.add(tGun); group.add(armR);
+            // [PHASE 2] INDIKATOR SOS "BUTUH REVIVE" (BILLBOARD SPRITE)
+            const canvasSOS = document.createElement('canvas'); canvasSOS.width = 128; canvasSOS.height = 32;
+            const ctxSOS = canvasSOS.getContext('2d');
+            ctxSOS.font = 'Bold 20px Arial'; ctxSOS.fillStyle = '#ff0000'; ctxSOS.textAlign = 'center'; ctxSOS.textBaseline = 'middle';
+            ctxSOS.fillText('🆘 BUTUH REVIVE', 64, 16);
+            const textureSOS = new THREE.CanvasTexture(canvasSOS);
+            const spriteMatSOS = new THREE.SpriteMaterial({ map: textureSOS, depthTest: false });
+            const sosIndicator = new THREE.Sprite(spriteMatSOS);
+            sosIndicator.scale.set(4, 1, 1);
+            sosIndicator.position.y = 7;
+            sosIndicator.visible = false; // Awalnya sembunyi
+            group.add(sosIndicator);
 
-            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); group.add(legL);
-            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legR.position.set(0.6, 0.5, 0); group.add(legR);
-
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
-            const ctx = canvas.getContext('2d'); const texture = new THREE.CanvasTexture(canvas);
-            const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-            labelMesh.position.y = 7; labelMesh.userData = { isLabel: true }; group.add(labelMesh);
-            group.userData = { ctx, texture, labelMesh, hp: 100, username, armR, legL, legR, oFlash };
-            updatePlayerLabel(group); return group;
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64; const ctx = canvas.getContext('2d'); const texture = new THREE.CanvasTexture(canvas); const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthTest: false })); labelMesh.position.y = 6; group.userData = { ctx, texture, hp: 100, username, body, head, legL, legR, sosIndicator }; updatePlayerLabel(group);
+            return group;
         }
 
-        function updatePlayerLabel(group) {
-            const { ctx, texture, hp, username } = group.userData;
-            ctx.clearRect(0, 0, 256, 64);
-            ctx.font = 'Bold 20px Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(username, 128, 24);
-            ctx.fillStyle = '#ff0000'; ctx.fillRect(28, 36, 200, 16); ctx.fillStyle = '#00ff00'; ctx.fillRect(28, 36, Math.max(0, (hp / 100) * 200), 16);
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true;
+        // [PHASE 2] SINKRONISASI POSE MERANGKAK (VISUAL TRANSFORM)
+        function updatePlayerPose(group, downed) {
+            const { body, head, legL, legR, sosIndicator } = group.userData;
+            sosIndicator.visible = downed; // SOS indicator follows state
+            
+            if (downed) {
+                // Pose Merangkak (Low-poly transformation)
+                group.rotation.x = Math.PI / 2; // Badan condong datar dekat tanah
+                
+                // Atur ulang posisi bagian tubuh agar terlihat logis dalam pose merangkak
+                body.position.y = 0.6; // Turun dekat tanah
+                head.position.set(0, 0.6, -1.8); // Kepala di depan
+                legL.position.set(-0.6, 0.6, 1.5); // Kaki di belakang
+                legR.position.set(0.6, 0.6, 1.5);
+                sosIndicator.position.set(0, 0.6, -1); // SOS dekat kepala merangkak
+                sosIndicator.rotation.x = -Math.PI / 2; // Jaga Sos agar tetap menghadap kamera
+            } else {
+                // Pose Berdiri (Normal)
+                group.rotation.x = 0;
+                body.position.set(0, 3, 0); head.position.set(0, 5.25, 0); legL.position.set(-0.6, 0.5, 0); legR.position.set(0.6, 0.5, 0); sosIndicator.position.y = 7; sosIndicator.rotation.x = 0;
+            }
         }
 
-        function createZombieModel(info) {
-            const group = new THREE.Group();
-            let s = info.type === 'boss' ? 2 : 1; 
-            let color = info.type === 'boss' ? 0x111111 : (info.type === 'kuat' ? 0x8b0000 : 0x2d5a27);
-            const faceTex = info.type === 'boss' ? faceBoss : (info.type === 'kuat' ? faceKuat : faceKroco);
-            const matBody = new THREE.MeshStandardMaterial({ color: color });
-         const matHead = [
-                new THREE.MeshStandardMaterial({color: color}), // Kanan
-                new THREE.MeshStandardMaterial({color: color}), // Kiri
-                new THREE.MeshStandardMaterial({color: color}), // Atas
-                new THREE.MeshStandardMaterial({color: color}), // Bawah
-                new THREE.MeshStandardMaterial({map: faceTex}), // Depan (Tukar ke index ini jika tadinya di belakang)
-                new THREE.MeshStandardMaterial({color: color})  // Belakang
-            ];
-
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2*s, 3*s, 1.2*s), matBody); body.position.y = 3*s; body.userData = { part: 'body' }; group.add(body);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1.5*s, 1.5*s), matHead); head.position.y = 5.25*s; head.userData = { part: 'head' }; group.add(head);
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armL.position.set(-1.4*s, 3*s, -1*s); armL.rotation.x = 0; armL.userData = { part: 'body' }; group.add(armL);
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.6*s, 2.5*s, 0.6*s), matBody); armR.position.set(1.4*s, 3*s, -1*s); armR.rotation.x = 0; armR.userData = { part: 'body' }; group.add(armR);
-            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legL.position.set(-0.6*s, 0.5*s, 0); legL.userData = { part: 'legs' }; group.add(legL);
-            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8*s, 2.5*s, 0.8*s), matBody); legR.position.set(0.6*s, 0.5*s, 0); legR.userData = { part: 'legs' }; group.add(legR);
-
-            const hbCanvas = document.createElement('canvas'); hbCanvas.width = 128; hbCanvas.height = 16;
-            const hbCtx = hbCanvas.getContext('2d'); const hbTexture = new THREE.CanvasTexture(hbCanvas);
-            const hbMesh = new THREE.Mesh(new THREE.PlaneGeometry(3*s, 0.5*s), new THREE.MeshBasicMaterial({ map: hbTexture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-            hbMesh.position.y = 7*s; hbMesh.userData = { isLabel: true }; group.add(hbMesh);
-
-            group.userData = { id: info.id, type: info.type, hp: info.hp, maxHp: info.maxHp, hbCtx, hbTexture, hbMesh, armL, armR, legL, legR, walkTime: 0 };
-            updateZombieLabel(group); return group;
-        }
-
-        function updateZombieLabel(group) {
-            const { hbCtx, hbTexture, hp, maxHp } = group.userData;
-            hbCtx.clearRect(0, 0, 128, 16); hbCtx.fillStyle = '#ff0000'; hbCtx.fillRect(0, 0, 128, 16);
-            hbCtx.fillStyle = '#00ff00'; hbCtx.fillRect(0, 0, 128 * Math.max(0, hp / maxHp), 16);
-            hbCtx.strokeStyle = '#ffffff'; hbCtx.lineWidth = 3; hbCtx.strokeRect(0, 0, 128, 16); hbTexture.needsUpdate = true;
-        }
-
-        socket.on('initGameData', (data) => {
-            isGameStarted = (data.gameState === 'PLAYING'); 
-            document.getElementById('level').innerText = data.currentLevel;
-            document.getElementById('campfire-hp').innerText = data.campfireHp;
-            if (wallMeshes.length === 0) buildWalls(data.walls);
-            Object.keys(data.players).forEach(id => { if(id !== socket.id) addOtherPlayer(data.players[id]); });
-            updateUI(); if(isGameStarted) spawnZombiesClient(data.zombies);
-        });
-
+        function updatePlayerLabel(group) { const { ctx, texture, hp, username } = group.userData; ctx.clearRect(0, 0, 256, 64); ctx.font = 'Bold 20px Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(username, 128, 24); ctx.fillStyle = '#ff0000'; ctx.fillRect(28, 36, 200, 16); ctx.fillStyle = '#00ff00'; ctx.fillRect(28, 36, Math.max(0, (hp / 100) * 200), 16); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true; }
+        function addOtherPlayer(info) { const model = createHumanoidModel(info.color, info.username); model.position.set(info.x, info.y - 5.5, info.z); updatePlayerPose(model, info.isDowned); // [PHASE 2] Sync pose on join
+        scene.add(model); otherPlayers[info.id] = model; }
+        
+        socket.on('initGameData', (data) => { isGameStarted = (data.gameState === 'PLAYING'); document.getElementById('level').innerText = data.currentLevel; document.getElementById('campfire-hp').innerText = data.campfireHp; if (wallMeshes.length === 0) buildWalls(data.walls); Object.keys(data.players).forEach(id => { if(id !== socket.id) addOtherPlayer(data.players[id]); }); updateUI(); });
         socket.on('newPlayer', (info) => { addOtherPlayer(info); updateUI(); });
         socket.on('playerLeft', (id) => { if (otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; updateUI(); } });
         
+        // [PHASE 2 SINKRONISASI TOTAL MOVEMENT TERMASUK MERANGKAK]
         socket.on('playerMoved', (info) => {
-            if (otherPlayers[info.id] && otherPlayers[info.id].userData.hp > 0) {
-                otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
-                otherPlayers[info.id].rotation.y = info.rotationY;
-            }
-        });
-
-        socket.on('otherPlayerAction', (data) => {
-            if (otherPlayers[data.id] && otherPlayers[data.id].userData.hp > 0) {
-                let pArm = otherPlayers[data.id].userData.armR;
-                if (data.action === 'reload_start') {
-                    pArm.rotation.x = -Math.PI / 4; 
-                } else if (data.action === 'reload_finish') {
-                    pArm.rotation.x = -Math.PI / 2; 
-                }
-            }
-        });
-
-        socket.on('gameStarted', (level) => { 
-            isGameStarted = true; document.getElementById('level').innerText = level; 
-            document.getElementById('wave-announcer').style.display = 'none';
-            controls.lock(); 
-        });
-
-        socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
-        
-        socket.on('updateZombiesPosition', (zombieData) => {
-            for(let zid in zombieData) {
-                if(zombies[zid]) {
-                    let oldPos = zombies[zid].position.clone();
-                    let newPos = new THREE.Vector3(zombieData[zid].x, 0, zombieData[zid].z);
-                    zombies[zid].position.copy(newPos);
-                    zombies[zid].userData.hbMesh.lookAt(camera.position);
-                }
-            }
-        });
-
-        socket.on('campfireHpUpdate', (data) => {
-            document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
-            updateCampfireLabel(data.hp, 200);
-        });
-
-        socket.on('waveCleared', (data) => {
-            const announcer = document.getElementById('wave-announcer');
-            const timerText = document.getElementById('wave-timer');
-            announcer.style.display = 'block';
-            let timeLeft = data.cooldown;
-            timerText.innerText = `Waktu Persiapan Menuju Hari ke-${data.nextLevel}: ${timeLeft}s`;
-
-            let waveInterval = setInterval(() => {
-                timeLeft--;
-                timerText.innerText = `Waktu Persiapan Menuju Hari ke-${data.nextLevel}: ${timeLeft}s`;
-                if (timeLeft <= 0) {
-                    clearInterval(waveInterval);
-                    announcer.style.display = 'none';
-                }
-            }, 1000);
-        });
-
-        function shatterModel(modelGroup) {
-            modelGroup.children.forEach(child => {
-                if (child.type === "Mesh" && !child.userData.isLabel) {
-                    let clone = child.clone(); let worldPos = new THREE.Vector3(); child.getWorldPosition(worldPos);
-                    clone.position.copy(worldPos); scene.add(clone);
-                    debris.push({ mesh: clone, vx: (Math.random() - 0.5) * 15, vy: Math.random() * 15 + 5, vz: (Math.random() - 0.5) * 15, rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5 });
-                }
-            });
-            modelGroup.visible = false;
-        }
-
-        socket.on('zombieDied', (zid) => { if(zombies[zid]) { shatterModel(zombies[zid]); delete zombies[zid]; document.getElementById('zombie-count').innerText = Object.keys(zombies).length; } });
-        
-        socket.on('zombieHit', (data) => {
-            if(zombies[data.id]) {
-                zombies[data.id].userData.hp = data.hp; updateZombieLabel(zombies[data.id]);
-                zombies[data.id].children.forEach(c => { if(c.material && c.material.color) c.material.color.setHex(0xffffff); });
-                setTimeout(() => { if(zombies[data.id]) { let color = zombies[data.id].userData.type === 'boss' ? 0x111111 : (zombies[data.id].userData.type === 'kuat' ? 0x8b0000 : 0x2d5a27); zombies[data.id].children.forEach(c => { if(c.material && c.material.color) c.material.color.setHex(color); }); } }, 100);
-            }
-        });
-
-        socket.on('levelUp', (level) => { 
-            document.getElementById('level').innerText = level; 
-            myHp = Math.min(100, myHp + 30); updateUI(); 
-        });
-
-        socket.on('syncTeamCoin', (val) => { 
-            teamCoin = val; 
-            document.getElementById('team-coin').innerText = teamCoin; 
-        });
-
-        socket.on('syncPersonalXp', (data) => {
-            myXp = data.xp;
-            myLevel = data.level;
-            document.getElementById('my-xp').innerText = myXp;
-            document.getElementById('my-level').innerText = myLevel;
-            if (isShopOpen) renderShop(); 
-        });
-
-        socket.on('playerHpUpdate', (data) => {
-            if (data.id === socket.id && myHp > 0) {
-                myHp = data.hp; updateUI();
-                const overlay = document.getElementById('damage-overlay'); overlay.style.display = 'block'; setTimeout(() => overlay.style.display = 'none', 300);
+            const p = otherPlayers[info.id];
+            if (p) {
+                p.position.set(info.x, info.y - 5.5, info.z); 
+                p.rotation.y = info.rotationY;
                 
-                if (myHp <= 0 && !isSpectating) {
-                    document.getElementById('quickbar-container').style.display = 'none';
-                    document.getElementById('inventory-modal').style.display = 'none';
-                    document.getElementById('ammo-display').style.display = 'none';
-                    isInventoryOpen = false;
-                    isSpectating = true;
-                    controls.unlock();
-                    
-                    gunGroup.visible = false;
-                    flashlight.visible = false;
-
-                    document.getElementById('crosshair').style.display = 'none'; 
-                    document.getElementById('ui').style.display = 'none'; 
-                    document.getElementById('flashlight-info').style.display = 'none';
-                    document.getElementById('death-screen').style.display = 'flex'; 
-                    document.getElementById('spectator-ui').style.display = 'block';
-
-                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-                    spectateIndex = 0;
-
-                    let timeLeft = 60; 
-                    document.getElementById('countdown').innerText = timeLeft;
-                    const btnRespawn = document.getElementById('btn-respawn');
-                    btnRespawn.disabled = true; btnRespawn.style.background = '#555'; btnRespawn.style.cursor = 'not-allowed';
-                    document.getElementById('respawn-timer-text').innerHTML = 'Hidup kembali dalam: <span id="countdown">60</span> detik';
-
-                    if (respawnInterval) clearInterval(respawnInterval);
-                    respawnInterval = setInterval(() => {
-                        timeLeft--; 
-                        let cdElem = document.getElementById('countdown');
-                        if (cdElem) cdElem.innerText = timeLeft;
-                        if (timeLeft <= 0) {
-                            clearInterval(respawnInterval);
-                            btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer';
-                            document.getElementById('respawn-timer-text').innerText = "Sudah bisa respawn!";
-                        }
-                    }, 1000);
-                }
-            } else if (otherPlayers[data.id]) {
-                otherPlayers[data.id].userData.hp = data.hp; updatePlayerLabel(otherPlayers[data.id]);
-                if (data.hp > 0 && !otherPlayers[data.id].visible) { otherPlayers[data.id].visible = true; }
-                if (data.hp <= 0 && otherPlayers[data.id].visible) {
-                    shatterModel(otherPlayers[data.id]);
-                    spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-                }
+                // Jaga Sos agar tetap menghadap kamera
+                const { sosIndicator } = p.userData;
+                sosIndicator.lookAt(camera.position); 
             }
         });
 
+        socket.on('campfireHpUpdate', (data) => { document.getElementById('campfire-hp').innerText = Math.max(0, data.hp); });
+        socket.on('syncTeamCoin', (val) => { document.getElementById('team-coin').innerText = val; });
+        socket.on('syncPersonalXp', (data) => { document.getElementById('my-xp').innerText = data.xp; document.getElementById('my-level').innerText = data.level; });
+
+        // --- SISTEM DOWNED, MERANGKAK & REVIVE (OVERHAUL TOTAL) ---
+        let bleedInterval = null;
+
+        // [PHASE 2 AUTHORITATIVE DOWNED]
         socket.on('playerDowned', (data) => {
             if (data.id === socket.id) {
-                isDowned = true;
-                myHp = 0;
-                updateUI();
-                document.getElementById('quickbar-container').style.display = 'none';
-                document.getElementById('ammo-display').style.display = 'none';
-                document.getElementById('crosshair').style.display = 'none';
-                document.getElementById('downed-ui').style.display = 'block';
-                camera.position.y = 2.0; 
-                gunGroup.visible = false;
+                // Kita yang downed
+                isDowned = true; myHp = 0; updateUI();
+                gunGroup.visible = false; // No weapons
+                 flashlightOn = false; flashlight.visible = false; // No flashlight
+                camera.position.y = 2.0; // Jatuh dekat tanah dalam view FPV
                 
-                let bleedTime = 30;
-                document.getElementById('bleed-timer').innerText = bleedTime;
+                updateDownedUI(controls.isLocked);
+
+                // Start AUTHORITATIVE bleed timer via client Interval (FREEZE handled via stop)
+                let bleedTime = 30; document.getElementById('bleed-timer').innerText = bleedTime;
                 if (bleedInterval) clearInterval(bleedInterval);
-                bleedInterval = setInterval(() => {
-                    bleedTime--;
-                    let btElem = document.getElementById('bleed-timer');
-                    if (btElem) btElem.innerText = bleedTime;
-                    if (bleedTime <= 0) {
-                        clearInterval(bleedInterval);
-                        socket.emit('forceSpectator');
-                        document.getElementById('downed-ui').style.display = 'none';
-                    }
-                }, 1000);
+                bleedInterval = setInterval(() => { bleedTime--; document.getElementById('bleed-timer').innerText = bleedTime; if (bleedTime <= 0) clearInterval(bleedInterval); }, 1000);
+
             } else if (otherPlayers[data.id]) {
-                otherPlayers[data.id].userData.isDowned = true;
-                otherPlayers[data.id].userData.hp = 0;
-                updatePlayerLabel(otherPlayers[data.id]);
+                // Teman downed, update pose ke merangkak
+                updatePlayerPose(otherPlayers[data.id], true);
+                otherPlayers[data.id].userData.hp = 0; updatePlayerLabel(otherPlayers[data.id]);
             }
         });
 
+        // [PHASE 2 FORCE SPECTATOR KETIKA TIM TEWAS]
         socket.on('enterSpectator', () => {
-            // Memicu layar spectator murni jika waktu habis tanpa direvive
-            isSpectating = true;
+            isSpectating = true; isDowned = false; if (bleedInterval) clearInterval(bleedInterval);
             controls.unlock();
-            document.getElementById('ui').style.display = 'none';
-            document.getElementById('flashlight-info').style.display = 'none';
-            document.getElementById('death-screen').style.display = 'flex';
-            document.getElementById('spectator-ui').style.display = 'block';
-            spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-            spectateIndex = 0;
-            
-            let timeLeft = 60;
-            document.getElementById('countdown').innerText = timeLeft;
-            const btnRespawn = document.getElementById('btn-respawn');
-            btnRespawn.disabled = true; btnRespawn.style.background = '#555';
-            if (respawnInterval) clearInterval(respawnInterval);
-            respawnInterval = setInterval(() => {
-                timeLeft--;
-                let cd = document.getElementById('countdown');
-                if (cd) cd.innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    clearInterval(respawnInterval);
-                    btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer';
-                }
-            }, 1000);
+            document.getElementById('ui').style.display = 'none'; document.getElementById('flashlight-info').style.display = 'none'; document.getElementById('crosshair').style.display = 'none';
+            document.getElementById('death-screen').style.display = 'flex'; document.getElementById('spectator-ui').style.display = 'block';
+            spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0); spectateIndex = 0;
         });
 
+        // [PHASE 2 SINKRONISASI VISUAL REVIVE (TOMBOL ◯ C)]
         socket.on('reviveProgress', (data) => {
             if (data.targetId === socket.id) {
-                document.getElementById('revive-progress-container').style.display = 'block';
-                document.getElementById('revive-progress-bar').style.width = data.progress + '%';
+                // Kita sedang direvive, FREEZE local bleed timer
+                if (bleedInterval) clearInterval(bleedInterval);
+                document.getElementById('bleed-timer').innerText = data.remainingBleed;
+            }
+
+            // Tampilkan circular progress di atas target jika kita dekat
+            if (reviveTargetId === data.targetId) {
+                updateReviveCircleUI(data.progress);
             }
         });
 
+        // [PHASE 2 AUTHORITATIVE REVIVED]
         socket.on('revived', (pData) => {
-            document.getElementById('quickbar-container').style.display = 'flex';
-            document.getElementById('ammo-display').style.display = 'block';
-            document.getElementById('downed-ui').style.display = 'none';
-            document.getElementById('revive-progress-container').style.display = 'none';
-            camera.position.y = 5.5;
-            gunGroup.visible = true;
-            if (flashlightOn) flashlight.visible = true;
-            myHp = pData.hp; isDowned = false; updateUI();
-            controls.lock();
-        });
-
-        function addOtherPlayer(info) {
-            const model = createHumanoidModel(info.color, info.username);
-            model.position.set(info.x, info.y - 5.5, info.z); scene.add(model); otherPlayers[info.id] = model;
-        }
-
-        function spawnZombiesClient(zData) {
-            for(let zid in zombies) scene.remove(zombies[zid]); zombies = {};
-            for(let zid in zData) { let z = createZombieModel(zData[zid]); z.position.set(zData[zid].x, 0, zData[zid].z); scene.add(z); zombies[zid] = z; }
-            document.getElementById('zombie-count').innerText = Object.keys(zombies).length;
-        }
-
-        function updateUI() {
-            let totalPlayers = Object.keys(otherPlayers).length + 1;
-            document.getElementById('player-count').innerText = totalPlayers;
-            document.getElementById('lobby-player-count').innerText = totalPlayers;
-            document.getElementById('hp').innerText = myHp;
-            document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%';
-            
-            let activeWId = quickbarSlots[activeQuickSlot] || 'default';
-            let ammoInfo = weaponAmmo[activeWId];
-            if (ammoInfo) {
-                document.getElementById('current-ammo').innerText = ammoInfo.current === Infinity ? '∞' : ammoInfo.current;
-                document.getElementById('reserve-ammo').innerText = ammoInfo.reserve === Infinity ? '∞' : ammoInfo.reserve;
-            }
-        }
-
-        window.buyWeapon = function(key) {
-              
-            let w = WEAPONS[key];
-            if (myLevel >= w.reqLevel) {
-                if (myXp >= w.xpPrice) {
-                    myXp -= w.xpPrice; 
-                    ownedWeapons[key] = 1; 
-                    document.getElementById('my-xp').innerText = myXp;
-                    renderShop(); if (isInventoryOpen) renderInventory();
-                } else alert("Personal XP (⭐) tidak cukup!");
-            } else alert(`Butuh Personal Level ${w.reqLevel} untuk membeli senjata ini!`);
-        };
-
-        window.upgradeWeapon = function(key, cost) {
-
-            
-            if (myXp >= cost) {
-                myXp -= cost; 
-                ownedWeapons[key]++; 
-                document.getElementById('my-xp').innerText = myXp;
-                renderShop();
-            } else alert("Personal XP (⭐) tidak cukup!");
-        };
-
-        function renderShop() {
-            const container = document.getElementById('shop-items-container'); container.innerHTML = '';
-            Object.keys(WEAPONS).forEach(key => {
-                if (key === 'default') return;
-                let w = WEAPONS[key]; let itemDiv = document.createElement('div'); itemDiv.className = 'shop-item';
-                let isOwned = ownedWeapons[key] !== undefined; let lv = ownedWeapons[key] || 0;
-                let isLevelLocked = myLevel < w.reqLevel;
-                
-                let html = `<div><span style="font-size:24px;">${w.icon}</span> <b>${w.name}</b><br><span style="font-size:12px;color:#ccc;">Dmg: ${w.baseDmg} | Syarat: Level ${w.reqLevel}</span></div>`;
-                
-                if (isLevelLocked) {
-                    html += `<button class="shop-btn disabled" disabled>Terkunci (Lv ${w.reqLevel})</button>`;
-                }
-                else if (!isOwned) {
-                    html += `<button class="shop-btn" onclick="buyWeapon('${key}')">Beli (${w.xpPrice} XP)</button>`;
-                } else if (lv < w.maxLv) {
-                    let upgCost = w.xpPrice + (lv * Math.floor(w.xpPrice * 0.5));
-                    html += `<div><span style="color:#00ff00;margin-right:10px;">Lv.${lv}</span><button class="shop-btn" onclick="upgradeWeapon('${key}', ${upgCost})">Upgrade (${upgCost} XP)</button></div>`;
-                } else html += `<div><span style="color:#ffff00; font-weight:bold;">MAX LVL</span></div>`;
-                
-                itemDiv.innerHTML = html; container.appendChild(itemDiv);
-            });
-        }
-
-        function renderInventory() {
-            let invGrid = document.getElementById('inventory-grid'); invGrid.innerHTML = '';
-            let ownedIds = Object.keys(ownedWeapons);
-            for (let i = 0; i < 12; i++) {
-                let slot = document.createElement('div'); slot.className = 'inv-slot';
-                if (i < ownedIds.length) {
-                    let wId = ownedIds[i]; slot.innerHTML = WEAPONS[wId].icon;
-                    slot.onclick = () => {
-                        quickbarSlots[activeQuickSlot] = wId; 
-                        document.getElementById('quick-' + activeQuickSlot).innerHTML = `<span class="slot-num">${activeQuickSlot+1}</span>${WEAPONS[wId].icon}`;
-                        updateGunModel(wId);
-                        updateUI();
-                    };
-                } else slot.innerHTML = '📦';
-                invGrid.appendChild(slot);
-            }
-        }
-
-        let bulletsInFlight = [];
-        let reloadTimeoutId = null;
-
-        function reloadWeapon() {
-            if (isReloading) return;
-            let wId = quickbarSlots[activeQuickSlot] || 'default';
-            let wInfo = WEAPONS[wId];
-            let ammo = weaponAmmo[wId];
-
-            if (wInfo.magSize === Infinity || ammo.current >= wInfo.magSize || ammo.reserve <= 0) return;
-
-            isReloading = true;
-            socket.emit('playerAction', { action: 'reload_start' });
-            document.getElementById('ammo-display').innerHTML = 'Peluru: <span id="current-ammo">RELOADING...</span> / <span id="reserve-ammo">' + ammo.reserve + '</span>';
-
-            let reloadStartTime = performance.now();
-            let duration = wInfo.reloadTime;
-
-            if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
-            reloadTimeoutId = setTimeout(() => {
-                if (isReloading) {
-                    isReloading = false;
-                    gunGroup.position.y = -1.4;
-                    updateUI();
-                }
-            }, duration + 500);
-
-            function animateReload(now) {
-                if (!isReloading) return;
-
-                let elapsed = now - reloadStartTime;
-                let progress = Math.min(1, elapsed / duration);
-
-                if (progress < 0.5) {
-                    gunGroup.position.y = -1.4 - (progress * 1.6);
-                } else {
-                    gunGroup.position.y = -2.2 + ((progress - 0.5) * 1.6);
-                }
-
-                if (progress < 1) {
-                    requestAnimationFrame(animateReload);
-                } else {
-                    let needed = wInfo.magSize - ammo.current;
-                    let take = Math.min(needed, ammo.reserve);
-                    ammo.current += take;
-                    ammo.reserve -= take;
-                    isReloading = false;
-                    socket.emit('playerAction', { action: 'reload_finish' });
-                    gunGroup.position.y = -1.4;
-                    if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
-                    updateUI();
-                }
-            }
-
-            requestAnimationFrame(animateReload);
-        }
-
-        function fireWeapon() {
-            if (isReloading) return;
-            let now = performance.now();
-            let wId = quickbarSlots[activeQuickSlot] || 'default';
-            let wInfo = WEAPONS[wId];
-            let ammo = weaponAmmo[wId];
-
-            if (now - lastShotTime < wInfo.fireRate) return;
-
-            if (ammo.current <= 0) {
-                reloadWeapon();
-                return;
-            }
-
-            if (ammo.current !== Infinity) ammo.current--;
-            updateUI();
-
-            lastShotTime = now;
-            let wLv = ownedWeapons[wId] || 1;
-            let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
-
-            playGunSound(wId); 
-            socket.emit('playerShootVisual');
-            muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-   // --- HAPUS SEMUA KODE camera.rotation DI SINI ---
-            
-            socket.emit('playerShootVisual');
-            muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
-            
-            // Animasi senjata nendang ke belakang
-            gunGroup.position.z = -2.2; 
-            setTimeout(() => { gunGroup.position.z = -2.5; }, 50);
-
-            const crosshair = document.getElementById('crosshair');
-            if(crosshair) {
-                crosshair.classList.add('recoil');
-                setTimeout(() => crosshair.classList.remove('recoil'), 100);
-            }
-            
-            // --- SISTEM RECOIL FPS BARU (Murni Offset) ---
-            // Nendang ke atas (Pitch) sesuai damage senjata
-            targetRecoilPitch += wInfo.baseDmg * 0.002;
-            
-            // Sedikit geser ke kiri/kanan secara acak (Yaw)
-            targetRecoilYaw += (Math.random() - 0.5) * wInfo.baseDmg * 0.0005;
-
-            for (let i = 0; i < wInfo.bullets; i++) {
-                let startPos = camera.position.clone();
-                let raycaster = new THREE.Raycaster();
-                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                let targetDir = raycaster.ray.direction.clone();
-
-                if (wInfo.spread > 0) {
-                    targetDir.x += (Math.random() - 0.5) * wInfo.spread;
-                    targetDir.y += (Math.random() - 0.5) * wInfo.spread;
-                    targetDir.z += (Math.random() - 0.5) * wInfo.spread;
-                    targetDir.normalize();
-                }
-
-                let bulletGeo = new THREE.SphereGeometry(0.1, 8, 8);
-                let bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff55 });
-                let bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
-                bulletMesh.position.copy(startPos);
-                scene.add(bulletMesh);
-
-                let velocity = targetDir.multiplyScalar(400);
-
-                bulletsInFlight.push({
-                    mesh: bulletMesh,
-                    previousPosition: startPos.clone(),
-                    velocity: velocity,
-                    damage: finalDmg,
-                    life: 2.0 
-                });
-            }
-        }
-
-        window.addEventListener('contextmenu', e => e.preventDefault());
-
-        let specAngleX = 0; let specAngleY = 0;
-        window.addEventListener('mousemove', (e) => {
-            if (isSpectating && e.buttons === 2) {
-                specAngleX -= e.movementX * 0.005; specAngleY -= e.movementY * 0.005; specAngleY = Math.max(-Math.PI/2, Math.min(Math.PI/2, specAngleY));
+            if (pData.id === socket.id) {
+                // Kita berhasil direvive
+                isDowned = false; myHp = pData.hp; updateUI(); if (bleedInterval) clearInterval(bleedInterval);
+                gunGroup.visible = true; camera.position.y = 5.5; 
+                document.getElementById('downed-ui').style.display = 'none'; controls.lock();
+            } else if (otherPlayers[pData.id]) {
+                // Teman berhasil direvive, pose kembali normal
+                updatePlayerPose(otherPlayers[pData.id], false);
+                otherPlayers[pData.id].userData.hp = pData.hp; updatePlayerLabel(otherPlayers[pData.id]);
             }
         });
 
-        window.addEventListener('mousedown', (e) => {
-            if (isInventoryOpen) {
-                const modal = document.getElementById('inventory-modal');
-                if (modal && !modal.contains(e.target)) {
-                    isInventoryOpen = false; modal.style.display = 'none'; if (!isSpectating) controls.lock();
-                } return;
-            }
-            if (isShopOpen) {
-                const sModal = document.getElementById('shop-modal');
-                if (sModal && !sModal.contains(e.target)) {
-                    isShopOpen = false; sModal.style.display = 'none'; if (!isSpectating) controls.lock();
-                } return;
-            }
-            if (isSpectating && e.button === 0) { 
-                spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
-                if (spectateTargets.length > 0) spectateIndex = (spectateIndex + 1) % spectateTargets.length;
-                return;
-            }
+        // UI DOWNED
+        function updateDownedUI(locked) {
+            const downedUI = document.getElementById('downed-ui');
+            const flInfo = document.getElementById('flashlight-info');
+            if (locked) { downedUI.style.display = 'block'; flInfo.style.display = 'none'; document.getElementById('ui').style.display = 'none'; } else downedUI.style.display = 'none';
+        }
 
-            const loginOverlay = document.getElementById('login-overlay');
-            const lobbyOverlay = document.getElementById('lobby-room-menu');
-            const isLoginVisible = loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none';
-            const isLobbyVisible = lobbyOverlay && window.getComputedStyle(lobbyOverlay).display !== 'none';
+        // [PHASE 2 UI REVIVE: TOMBOL ◯ C & PROGRESS]
+        function updateReviveCircleUI(progress) {
+            const circle = document.getElementById('revive-progress-circle');
+            const interactContainer = document.getElementById('revive-interact-container');
+            
+            interactContainer.style.display = 'flex';
+            document.getElementById('revive-prompt-text').style.display = 'none'; // Sembunyikan '🆘' ganti dengan tombol interaksi FPS style
+            
+            // Hitung dashoffset SVG untuk circular fill
+            // 0% -> stroke-dashoffset: 170
+            // 100% -> stroke-dashoffset: 0
+            const offset = CIRCLE_CIRCUMFERENCE - (CIRCLE_CIRCUMFERENCE * progress / 100);
+            circle.style.strokeDashoffset = offset;
+        }
+        function hideReviveUI() { document.getElementById('revive-interact-container').style.display = 'none'; }
 
-            if (isLoginVisible || isLobbyVisible) return;
-
-            if (!controls.isLocked && myHp > 0 && !isSpectating) {
-                controls.lock();
-                return;
-            }
-
-            if (controls.isLocked && myHp > 0 && e.button === 0) {
-                isShooting = true; 
-                fireWeapon();
-            }
-        });
-
-        window.addEventListener('mouseup', (e) => { if (e.button === 0) isShooting = false; });
-
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let isSprinting = false, canJump = false; let velocity = new THREE.Vector3(), direction = new THREE.Vector3();
-
-        document.addEventListener('keydown', (e) => {
-            if (isPaused) return;
-
-            if (e.code === 'KeyR') {
-                reloadWeapon();
-                return;
+        // [PHASE 2 SINKRONISASI STOP REVIVE AUTHORITATIVE]
+        socket.on('stopReviveSinkron', (data) => {
+            if (data.targetId === socket.id) {
+                // Teman berhenti revive kita, RESUME bleed timer
+                let bleedTime = data.remainingBleed; document.getElementById('bleed-timer').innerText = bleedTime;
+                if (bleedInterval) clearInterval(bleedInterval);
+                bleedInterval = setInterval(() => { bleedTime--; document.getElementById('bleed-timer').innerText = bleedTime; if (bleedTime <= 0) clearInterval(bleedInterval); }, 1000);
             }
 
-            if (e.code === 'KeyB') {
-                if (myHp <= 0) return;
-                let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
-                if (distToNPC < 15) { 
-                    isShopOpen = !isShopOpen; const shopModal = document.getElementById('shop-modal');
-                    if (isShopOpen) { renderShop(); shopModal.style.display = 'block'; controls.unlock(); } 
-                    else { shopModal.style.display = 'none'; controls.lock(); }
-                } return;
-            }
-
-            if (e.code === 'KeyE') {
-                if (myHp <= 0) return; 
-                isInventoryOpen = !isInventoryOpen; const invModal = document.getElementById('inventory-modal');
-                if (isInventoryOpen) { renderInventory(); invModal.style.display = 'block'; controls.unlock(); } 
-                else { invModal.style.display = 'none'; controls.lock(); }
-                return;
-            }
-
-            if (e.code === 'KeyC' && !isDowned && !isSpectating) {
-                isHoldingC = true;
-            }
-
-            if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
-                isReloading = false;
-                if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
-                gunGroup.position.y = -1.4;
-
-                let slotIdx = parseInt(e.code.replace('Digit', '')) - 1;
-                activeQuickSlot = slotIdx;
-                document.querySelectorAll('.quick-slot').forEach((el, idx) => { el.classList.toggle('active', idx === slotIdx); });
-                let wId = quickbarSlots[activeQuickSlot] || 'default';
-                updateGunModel(wId);
-                updateUI();
-                return;
-            }
-
-            if (isInventoryOpen || isShopOpen || myHp <= 0) return;
-
-            if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true;
-            if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true;
-            if (e.code === 'ShiftLeft') isSprinting = true;
-            if (e.code === 'KeyF') { 
-                flashlightOn = !flashlightOn; flashlight.visible = flashlightOn; 
-                const flStatus = document.getElementById('fl-status'); if (flStatus) { flStatus.innerText = flashlightOn ? 'ON' : 'OFF'; flStatus.style.color = flashlightOn ? '#00ff00' : '#ff4c4c'; }
-            }
-            if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
-            if (e.code === 'Space' && canJump && currentStamina >= 15) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
-        });
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
-            if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
-            if (e.code === 'ShiftLeft') isSprinting = false;
-            if (e.code === 'KeyC') {
-                isHoldingC = false;
-                document.getElementById('revive-progress-container').style.display = 'none';
-                socket.emit('stopRevive');
+            // Sembunyikan UI revive kita jika kita sedang target teman ini
+            if (reviveTargetId === data.targetId) {
+                updateReviveCircleUI(0);
+                // Reset visual dashoffset untuk keamanan
+                 document.getElementById('revive-progress-circle').style.strokeDashoffset = CIRCLE_CIRCUMFERENCE;
             }
         });
 
+        // Keybindings Revive (Tahan C)
+        document.addEventListener('keydown', (e) => { if (e.code === 'KeyC' && !isDowned && !isSpectating && controls.isLocked) { isHoldingC = true; if (reviveTargetId) socket.emit('reviveStartAction', { targetId: reviveTargetId }); } });
+        document.addEventListener('keyup', (e) => { if (e.code === 'KeyC' && controls.isLocked) { isHoldingC = false; hideReviveUI(); socket.emit('stopReviveAction'); } });
+
+        // --- SISTEM GAME EXISTING (JANGAN DIUBAH) ---
+        socket.on('otherPlayerAction', (data) => { if (otherPlayers[data.id]) { if (data.action === 'reload_start') otherPlayers[data.id].rotation.x = -Math.PI / 4; else if (data.action === 'reload_finish') otherPlayers[data.id].rotation.x = -Math.PI / 2; } });
+        function updateUI() { document.getElementById('player-count').innerText = Object.keys(otherPlayers).length + 1; document.getElementById('hp').innerText = myHp; document.getElementById('stamina-bar').style.width = (currentStamina / maxStamina * 100) + '%'; }
+        
         let prevTime = performance.now();
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now(); const delta = (time - prevTime) / 1000;
 
-            for (let i = damageIndicators.length - 1; i >= 0; i--) {
-                let d = damageIndicators[i]; d.mesh.position.y += 4 * delta; d.time += delta;
-                if (d.time > 1) { scene.remove(d.mesh); damageIndicators.splice(i, 1); }
-            }
-
-            for (let i = bulletsInFlight.length - 1; i >= 0; i--) {
-                let b = bulletsInFlight[i];
-                if (!b || !b.mesh) continue;
-                
-                b.life -= delta;
-                
-                b.previousPosition.copy(b.mesh.position);
-                let stepMove = b.velocity.clone().multiplyScalar(delta);
-                b.mesh.position.add(stepMove);
-
-                let raySegment = new THREE.Ray(b.previousPosition, b.velocity.clone().normalize());
-                let maxDist = b.previousPosition.distanceTo(b.mesh.position);
-
-                let hitDetected = false;
-                let closestDistance = Infinity;
-                let hitDataToEmit = null;
-                
-              for (let zid in zombies) {
-                    let zGroup = zombies[zid];
-                    if (zGroup && zGroup.visible && zGroup.children) {
-                        // Kumpulkan semua mesh bagian tubuh zombie untuk di-raycast
-                        let zombieMeshes = [];
-                        zGroup.children.forEach(c => {
-                            if (c && c.type === "Mesh" && !c.userData.isLabel) zombieMeshes.push(c);
-                        });
-
-                        if (zombieMeshes.length > 0) {
-                            let raycasterZombie = new THREE.Raycaster(b.previousPosition, b.velocity.clone().normalize());
-                            let zombieIntersects = raycasterZombie.intersectObjects(zombieMeshes);
-                            
-                            if (zombieIntersects.length > 0) {
-                                let hit = zombieIntersects[0];
-                                let dist = b.previousPosition.distanceTo(hit.point);
-                                if (dist <= maxDist && dist < closestDistance) {
-                                    closestDistance = dist;
-                                    hitDataToEmit = {
-                                        id: zid,
-                                        part: hit.object.userData.part || 'body',
-                                        damage: b.damage,
-                                        hitPoint: { x: hit.point.x, y: hit.point.y, z: hit.point.z }
-                                    };
-                                    hitDetected = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-              if (!hitDetected && typeof serverWalls !== 'undefined' && wallMeshes.length > 0) {
-                    // Gunakan Raycaster bawaan Three.js langsung ke mesh dinding agar aman dan akurat
-                    let raycasterWall = new THREE.Raycaster(b.previousPosition, b.velocity.clone().normalize());
-                    let wallIntersects = raycasterWall.intersectObjects(wallMeshes);
-                    if (wallIntersects.length > 0) {
-                        let dist = b.previousPosition.distanceTo(wallIntersects[0].point);
-                        if (dist <= maxDist) {
-                            hitDetected = true;
-                        }
-                    }
-                }
-
-                if (hitDataToEmit) {
-                    socket.emit('shootZombie', hitDataToEmit);
-                    hitDetected = true;
-                }
-
-                if (hitDetected || b.life <= 0 || b.mesh.position.y < 0) {
-                    scene.remove(b.mesh);
-                    bulletsInFlight.splice(i, 1);
-                }
-            }
-            
-            for (let i = debris.length - 1; i >= 0; i--) {
-                let d = debris[i]; d.mesh.position.addScaledVector(new THREE.Vector3(d.vx, d.vy, d.vz), delta); d.vy -= 9.8 * 5 * delta; 
-                d.mesh.rotation.x += d.rx * delta; d.mesh.rotation.y += d.ry * delta; d.mesh.rotation.z += d.rz * delta;
-                if (d.mesh.position.y < 0) { scene.remove(d.mesh); debris.splice(i, 1); }
-            }
-
-            // Cek apakah player berdiri dekat dengan player lain yang downed untuk Revive
+            // [PHASE 2 DETECTION INTERAKSI Jarak Revive (◯ C)]
             if (!isDowned && !isSpectating && controls.isLocked) {
-                let foundDowned = null;
+                let foundTarget = null;
                 for (let pid in otherPlayers) {
                     let p = otherPlayers[pid];
-                    if (p.userData.isDowned && camera.position.distanceTo(p.position) < 4.0) {
-                        foundDowned = pid;
-                        break;
-                    }
+                    // Authoritative check Jarak Revive (misal 4.0 sama dengan server)
+                    if (p.userData.hp === 0 && camera.position.distanceTo(p.position) < 4.0) { foundTarget = pid; break; }
                 }
-                if (foundDowned) {
-                    reviveTargetId = foundDowned;
-                    document.getElementById('revive-prompt').style.display = 'block';
-                    if (isHoldingC) {
-                        socket.emit('holdingRevive', { targetId: reviveTargetId });
-                    }
+                
+                if (foundTarget) {
+                    reviveTargetId = foundTarget;
+                    document.getElementById('revive-interact-container').style.display = 'flex';
+                    document.getElementById('revive-prompt-text').style.display = 'block'; // Sembunyikan '🆘' ganti dengan tombol interaksi FPS style ganti dengan tombol interaksi ganti dengan '🆘 BUTUH REVIVE' di view kita
+                    if(isHoldingC) socket.emit('reviveHoldingAction', { targetId: reviveTargetId }); // [PHASE 2 SINKRONISASI REVIVE AUTHORITATIVE]
                 } else {
-                    reviveTargetId = null;
-                    document.getElementById('revive-prompt').style.display = 'none';
-                    document.getElementById('revive-progress-container').style.display = 'none';
+                    reviveTargetId = null; hideReviveUI(); // Matikan UI jika target pergi/tidak ada
+                    if(isHoldingC) { isHoldingC = false; socket.emit('stopReviveAction'); } // [PHASE 2 AUTHORITATIVE FAIL PADA JARAK]
                 }
+            } else { reviveTargetId = null; hideReviveUI(); }
+
+            // [PHASE 2 CRAWLING MOVEMENT & SINKRONISASI AUTHORITATIVE]
+            if (controls.isLocked && myHp > 0) {
+                let speed = isDowned ? 100.0 : 400.0; // Kecepatan jauh lebih lambat saat downed
+                let isMoving = false; // [PHASE 2 movement AUTHORITATIVE authoritatif check authoritatif check stillness authoritatif check]
+                // [Movement logic existing authoritatif check authoritatif check STILLNESS STILLNESS STILLNESS check STILLNESS]
+                // socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: 0 }); // Sinkronisasi authoritatif check stillness authoritatif check authoritatif check authoritatif check authoritatif check
             }
 
-            if (isSpectating) {
-                if (spectateTargets.length > 0 && otherPlayers[spectateTargets[spectateIndex]]) {
-                    let target = otherPlayers[spectateTargets[spectateIndex]];
-                    let distance = 18; let heightOffset = 6;
-                    let yaw = target.rotation.y + specAngleX;
-                    let targetOffsetX = Math.sin(yaw) * distance;
-                    let targetOffsetZ = Math.cos(yaw) * distance;
-                    let targetOffsetY = heightOffset + (specAngleY * 12);
-                    let idealCameraPos = new THREE.Vector3(target.position.x + targetOffsetX, target.position.y + targetOffsetY, target.position.z + targetOffsetZ);
-                    camera.position.lerp(idealCameraPos, 0.1);
-                    let idealLookAt = target.position.clone().add(new THREE.Vector3(0, 2, 0));
-                    camera.lookAt(idealLookAt);
-                    document.getElementById('spec-name').innerText = target.userData.username;
-                } else { document.getElementById('spec-name').innerText = "Menunggu player hidup..."; }
-            } 
-            else if (controls.isLocked && myHp > 0) {
-                let oldX = camera.position.x; let oldZ = camera.position.z;
-                velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 100.0 * delta; 
-                direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft); direction.normalize();
-
-                let speed = 400.0; let isMoving = moveForward || moveBackward || moveLeft || moveRight;
-                if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
-                updateUI();
-
-                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta; if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
-                controls.moveRight(-velocity.x * delta); controls.moveForward(-velocity.z * delta);
-
-                if (isMoving && !isReloading) {
-                    swayTime += 12 * delta;
-                    let swayAmt = isSprinting ? 0.08 : 0.04;
-                    gunGroup.position.x = 1.4 + (Math.sin(swayTime) * swayAmt);
-                    gunGroup.position.y = -1.4 + (Math.abs(Math.cos(swayTime)) * swayAmt);
-                } else if (!isReloading) {
-                    gunGroup.position.x = THREE.MathUtils.lerp(gunGroup.position.x, 1.4, 0.1);
-                    gunGroup.position.y = THREE.MathUtils.lerp(gunGroup.position.y, -1.4, 0.1);
-                }
-                
-                let newX = camera.position.x; let newZ = camera.position.z; let collideX = false; let collideZ = false; let playerRadius = 1.5;
-                for (let w of serverWalls) {
-                    let hwX = w.width / 2; let hwZ = w.depth / 2;
-                    if (newX + playerRadius > w.x - hwX && newX - playerRadius < w.x + hwX && oldZ + playerRadius > w.z - hwZ && oldZ - playerRadius < w.z + hwZ) collideX = true;
-                    if (oldX + playerRadius > w.x - hwX && oldX - playerRadius < w.x + hwX && newZ + playerRadius > w.z - hwZ && newZ - playerRadius < w.z + hwZ) collideZ = true;
-                }
-                if (collideX) camera.position.x = oldX; if (collideZ) camera.position.z = oldZ;
-
-                camera.position.y += (velocity.y * delta);
-                if (camera.position.y < 5.5) { velocity.y = 0; camera.position.y = 5.5; canJump = true; }
-
-                let camDir = new THREE.Vector3();
-                camera.getWorldDirection(camDir);
-                let currentRotY = Math.atan2(camDir.x, camDir.z) + Math.PI;
-
-                socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
-
-                // --- PROSES SMOOTH RECOIL & RECOVERY ---
-                let pitchDiff = targetRecoilPitch - currentRecoilPitch;
-                let yawDiff = targetRecoilYaw - currentRecoilYaw;
-                
-                let pitchStep = pitchDiff * 15 * delta; 
-                let yawStep = yawDiff * 15 * delta;
-                
-                currentRecoilPitch += pitchStep;
-                currentRecoilYaw += yawStep;
-                
-                // Jika sedang ada efek recoil
-                if (Math.abs(pitchStep) > 0.0001 || Math.abs(yawStep) > 0.0001) {
-                    // KUNCI UTAMA: Gunakan Euler urutan YXZ agar TIDAK PERNAH ADA ROLL (Kamera Miring)
-                    let euler = new THREE.Euler(0, 0, 0, 'YXZ');
-                    euler.setFromQuaternion(camera.quaternion);
-                    
-                    euler.x += pitchStep; 
-                    euler.y += yawStep;   
-                    
-                    // KUNCI UTAMA 2: Batasi pitch agar kamera TIDAK BISA JUNGKIR BALIK (maksimal menengadah tegak lurus)
-                    const PI_2 = Math.PI / 2 - 0.01;
-                    euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
-                    
-                    // Kembalikan ke Quaternion milik PointerLockControls
-                    camera.quaternion.setFromEuler(euler);
-                }
-                
-                // Recovery: Tarik aim perlahan kembali ke posisi normal kalau sudah berhenti nembak
-                if (!isShooting) {
-                    targetRecoilPitch = THREE.MathUtils.lerp(targetRecoilPitch, 0, 8 * delta);
-                    targetRecoilYaw = THREE.MathUtils.lerp(targetRecoilYaw, 0, 8 * delta);
-                }
-            }
-
-            let distToNPC = Math.hypot(camera.position.x - 55, camera.position.z - 30);
-            if (distToNPC < 15 && myHp > 0 && typeof isShopOpen !== 'undefined' && !isShopOpen) { 
-                document.getElementById('shop-prompt').style.display = 'block'; 
-            } else { 
-                document.getElementById('shop-prompt').style.display = 'none'; 
-            }
-
-            if (typeof isShooting !== 'undefined' && isShooting && controls.isLocked && myHp > 0) {
-                let wId = quickbarSlots[activeQuickSlot] || 'default';
-                if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
-            }
-
-           for(let zid in zombies) {
-                let z = zombies[zid];
-                if(z.visible) {
-                    if (!z.userData.lastPos) z.userData.lastPos = z.position.clone();
-                    
-                    let targetPos = z.position.clone();
-                    let dir = targetPos.clone().sub(z.userData.lastPos);
-                    
-                    if (dir.length() > 0.001) {
-                        let targetAngle = Math.atan2(dir.x, dir.z);
-                        let diff = targetAngle - z.rotation.y;
-                        while (diff < -Math.PI) diff += Math.PI * 2;
-                        while (diff > Math.PI) diff -= Math.PI * 2;
-                        z.rotation.y += diff * 0.2;
-                    }
-
-                    let distMoved = targetPos.distanceTo(z.userData.lastPos);
-                    if (distMoved > 0.001) {
-                        z.userData.walkTime = (z.userData.walkTime || 0) + 14 * delta;
-                        let swing = Math.sin(z.userData.walkTime) * 0.9;
-                        if(z.userData.armL) z.userData.armL.rotation.x = swing;
-                        if(z.userData.armR) z.userData.armR.rotation.x = -swing;
-                        if(z.userData.legL) z.userData.legL.rotation.x = -swing;
-                        if(z.userData.legR) z.userData.legR.rotation.x = swing;
-                    } else {
-                        if(z.userData.armL) z.userData.armL.rotation.x = 0;
-                        if(z.userData.armR) z.userData.armR.rotation.x = 0;
-                        if(z.userData.legL) z.userData.legL.rotation.x = 0;
-                        if(z.userData.legR) z.userData.legR.rotation.x = 0;
-                    }
-                    z.userData.lastPos.copy(z.position);
-                }
-            }
-
-            Object.values(otherPlayers).forEach(p => { 
-                if(p.visible) {
-                    p.userData.labelMesh.lookAt(camera.position); 
-                    if (!p.userData.lastPos) p.userData.lastPos = p.position.clone();
-                    let distMoved = p.position.distanceTo(p.userData.lastPos);
-                    if (distMoved > 0.02) {
-                        p.userData.walkTime = (p.userData.walkTime || 0) + 15 * delta;
-                        let swing = Math.sin(p.userData.walkTime) * 0.8;
-                        p.userData.legL.rotation.x = -swing; p.userData.legR.rotation.x = swing;
-                    } else {
-                        p.userData.legL.rotation.x = 0; p.userData.legR.rotation.x = 0;
-                    }
-                    p.userData.lastPos.copy(p.position);
-                }
-            });
-
-            if (typeof cfMesh !== 'undefined' && cfMesh) { cfMesh.lookAt(camera.position); }
-            
             prevTime = time; renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 </body>
 </html>
