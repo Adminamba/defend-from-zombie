@@ -10,7 +10,12 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = {};
+// --- KONSTANTA AUTHORITATIVE DOWNED & REVIVE (PHASE 2) ---
 const MAX_PLAYERS_PER_ROOM = 5;
+const BLEED_OUT_TIME_SEC = 30; // Waktu pendarahan authoritaitve authoritaitve
+const REVIVE_DISTANCE = 4.0;    // Jarak revive authoritaitve authoritaitveauthoritaitve
+const REVIVE_TIME_SEC = 6.0;    // Waktu revive FPS style (6 detik)
+const MOVEMENT_TOLERANCE = 0.1; // Toleransi diam authoritaitve authoritaitve
 
 // === STRUKTUR BASE RAPI (TANPA TEMBOK TEMBUS & ADA API UNGGUN DI TENGAH) ===
 function generateBaseWalls() {
@@ -72,7 +77,9 @@ function spawnZombies(room) {
     io.to(room.id).emit('syncZombies', room.zombies);
 }
 
-// Loop Utama AI Zombie & Target (Player atau Api Unggun)
+// --- STATE REVIVE GLOBAL ---
+    // key: targetId, value: { reviverId, startX, startZ, progress, remainingBleed }
+    let roomReviveProgress = {};
 setInterval(() => {
     let now = Date.now();
     for (let roomId in rooms) {
@@ -236,6 +243,9 @@ io.on('connection', (socket) => {
             let p = rooms[socket.roomId].players[socket.id];
             if (p) {
                 p.x = data.x; p.y = data.y; p.z = data.z; p.rotationY = data.rotationY;
+                
+                // SinkronisasiAuthoritaitve Lambat (Speed 100-600) authoritaitve authoritaitve
+                // Movement dikirimauthoritaitve lambat, player lain melihat lambatauthoritaitve authoritaitve
                 socket.broadcast.to(socket.roomId).emit('playerMoved', p);
             }
         }
@@ -338,106 +348,92 @@ io.on('connection', (socket) => {
         }
     });
 
- // --- STATE & TRACKING REVIVE & DOWNED (PHASE 2 OVERHAUL) ---
-    let activeReviveState = null; 
-    let downedTimers = {};        
-
-    socket.on('reviveStartAction', (data) => {
-        let roomId = socket.roomId;
-        if (!roomId || !rooms[roomId]) return;
-        let room = rooms[roomId];
-        let targetPlayer = room.players[data.targetId];
-        let reviver = room.players[socket.id];
-
-        if (targetPlayer && targetPlayer.isDowned && reviver && reviver.hp > 0) {
-            let dist = Math.hypot(reviver.x - targetPlayer.x, reviver.z - targetPlayer.z);
-            if (dist <= 4.0) { 
-                activeReviveState = {
-                    reviverId: socket.id,
-                    targetId: data.targetId,
-                    progress: 0,
-                    startX: reviver.x,
-                    startZ: reviver.z,
-                    startTime: Date.now()
-                };
-                if (!downedTimers[data.targetId]) {
-                    downedTimers[data.targetId] = 30;
-                }
-            }
-        }
-    });
-
+// --- SINKRONISASI REVIVE 6 DETIK (PHASE 2 AUTHORITATIVE) ---
     socket.on('reviveHoldingAction', (data) => {
         let roomId = socket.roomId;
         if (!roomId || !rooms[roomId]) return;
+
         let room = rooms[roomId];
-        let targetPlayer = room.players[data.targetId];
         let reviver = room.players[socket.id];
+        let target = room.players[data.targetId];
 
-        if (!activeReviveState || activeReviveState.reviverId !== socket.id || activeReviveState.targetId !== data.targetId) return;
+        if (!reviver || !target || !target.isDowned || reviver.isDowned) return;
 
-        if (targetPlayer && targetPlayer.isDowned && reviver && reviver.hp > 0) {
-            let dist = Math.hypot(reviver.x - targetPlayer.x, reviver.z - targetPlayer.z);
-            if (dist > 4.0) { cancelRevive(roomId, data.targetId, "Terlalu Jauh"); return; }
+        // 1. Cek Jarak Valid (Authoritative)
+        let dx = reviver.x - target.x;
+        let dz = reviver.z - target.z;
+        let dist = Math.sqrt(dx*dx + dz*dz);
 
-            let moveDist = Math.hypot(reviver.x - activeReviveState.startX, reviver.z - activeReviveState.startZ);
-            if (moveDist > 0.1) { cancelRevive(roomId, data.targetId, "Reviver Bergerak"); return; }
+        if (dist > REVIVE_DISTANCE) {
+            delete roomReviveProgress[target.id];
+            io.to(roomId).emit('stopReviveSinkron', { targetId: target.id, remainingBleed: target.bleedTimeRemaining });
+            return;
+        }
 
-            let now = Date.now();
-            let elapsedSec = (now - activeReviveState.startTime) / 1000;
-            let progress = Math.min(100, (elapsedSec / 6.0) * 100);
-            activeReviveState.progress = progress;
+        // 2. Inisialisasi State Revive jika belum ada
+        if (!roomReviveProgress[target.id] || roomReviveProgress[target.id].reviverId !== socket.id) {
+            roomReviveProgress[target.id] = {
+                reviverId: socket.id,
+                startX: reviver.x,
+                startZ: reviver.z,
+                progress: 0
+            };
+        }
 
-            io.to(roomId).emit('reviveProgress', { 
-                targetId: data.targetId, progress: progress, remainingBleed: downedTimers[data.targetId] || 30 
+        let reviveData = roomReviveProgress[target.id];
+
+        // 3. Syarat: Penolong harus DIAM (Toleransi Pergerakan)
+        let moveX = Math.abs(reviver.x - reviveData.startX);
+        let moveZ = Math.abs(reviver.z - reviveData.startZ);
+        if (moveX > MOVEMENT_TOLERANCE || moveZ > MOVEMENT_TOLERANCE) {
+            delete roomReviveProgress[target.id];
+            io.to(roomId).emit('stopReviveSinkron', { targetId: target.id, remainingBleed: target.bleedTimeRemaining });
+            return;
+        }
+
+        // 4. Tambah Progress (6 detik = 100%)
+        reviveData.progress += (100 / (REVIVE_TIME_SEC * 10));
+
+        if (reviveData.progress >= 100) {
+            // BERHASIL REVIVE!
+            target.isDowned = false;
+            target.hp = 30; // Bangkit dengan HP 30
+            delete roomReviveProgress[target.id];
+
+            io.to(roomId).emit('revived', { id: target.id, hp: target.hp });
+        } else {
+            // KIRIM PROGRESS KE CLIENT
+            io.to(roomId).emit('reviveProgress', {
+                targetId: target.id,
+                progress: reviveData.progress,
+                remainingBleed: target.bleedTimeRemaining
             });
-
-            if (progress >= 100) {
-                let targetId = activeReviveState.targetId;
-                activeReviveState = null;
-                targetPlayer.isDowned = false;
-                targetPlayer.hp = 30; 
-                delete downedTimers[targetId];
-
-                reviver.xp = (reviver.xp || 0) + 75;
-                let pXp = reviver.xp;
-                let pLv = reviver.level || 1;
-                if (pXp >= 6500) pLv = 10; else if (pXp >= 5200) pLv = 9; else if (pXp >= 4000) pLv = 8; else if (pXp >= 3000) pLv = 7; else if (pXp >= 2200) pLv = 6; else if (pXp >= 1500) pLv = 5; else if (pXp >= 1000) pLv = 4; else if (pXp >= 600) pLv = 3; else if (pXp >= 250) pLv = 2;
-                reviver.level = pLv;
-
-                io.to(socket.id).emit('syncPersonalXp', { xp: reviver.xp, level: reviver.level });
-                io.to(roomId).emit('revived', { id: targetPlayer.id, hp: targetPlayer.hp });
-            }
         }
     });
 
+    // Batal Revive pas lepas tombol [C]
     socket.on('stopReviveAction', () => {
-        if (activeReviveState && activeReviveState.reviverId === socket.id) {
-            cancelRevive(socket.roomId, activeReviveState.targetId, "Tombol C Dilepas");
-        }
-    });
-
-    function cancelRevive(roomId, targetId, reason) {
-        if (!activeReviveState) return;
-        let tId = targetId || activeReviveState.targetId;
-        activeReviveState = null;
-        if (roomId && rooms[roomId]) {
-            io.to(roomId).emit('stopReviveSinkron', { targetId: tId, remainingBleed: downedTimers[tId] || 30 });
-        }
-    }
-
-    socket.on('forceSpectator', () => {
         let roomId = socket.roomId;
-        if (roomId && rooms[roomId]) {
-            let player = rooms[roomId].players[socket.id];
-            if (player) {
-                player.isDowned = false;
-                player.hp = 0;
-                delete downedTimers[socket.id];
-                io.to(socket.id).emit('enterSpectator');
+        if (!roomId || !rooms[roomId]) return;
+
+        for (let tId in roomReviveProgress) {
+            if (roomReviveProgress[tId].reviverId === socket.id) {
+                let target = rooms[roomId].players[tId];
+                let remainingBleed = target ? target.bleedTimeRemaining : 0;
+
+                delete roomReviveProgress[tId];
+                io.to(roomId).emit('stopReviveSinkron', { targetId: tId, remainingBleed: remainingBleed });
+                break;
             }
         }
     });
+
+
+   
+
+ 
+
+  
 
     
     socket.on('disconnect', () => {
