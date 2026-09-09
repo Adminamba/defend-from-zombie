@@ -194,7 +194,27 @@
         setInterval(() => { if (document.getElementById('login-overlay').style.display !== 'none') fetchRooms(); }, 3000); fetchRooms();
         window.joinRoom = function(roomId, roomName) { const name = document.getElementById('username-input').value.trim(); if(!name) return alert("Isi username!"); initAudio(); if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{}); socket.emit('joinRoom', { username: name, roomId: roomId, roomName: roomName }); document.getElementById('login-overlay').style.display = 'none'; document.getElementById('lobby-room-menu').style.display = 'flex'; };
         document.getElementById('btn-create-room').addEventListener('click', () => { let rName = document.getElementById('room-name-input').value.trim(); if(!rName) rName = "Room " + Math.floor(Math.random()*1000); joinRoom('room_' + Date.now(), rName); });
-        socket.on('roomError', (msg) => { alert(msg); location.reload(); }); document.getElementById('btn-start-game').addEventListener('click', () => socket.emit('startGame'));
+     socket.on('roomError', (msg) => { alert(msg); location.reload(); }); 
+
+// Tombol Mulai Game (Nge-lock mouse & mulai game)
+document.getElementById('btn-start-game').addEventListener('click', () => {
+    socket.emit('startGame');
+    controls.lock(); 
+});
+
+// Tombol Resume kalau lagi pause
+document.getElementById('btn-resume').addEventListener('click', () => {
+    controls.lock();
+});
+
+// Nangkep sinyal dari server kalau game udah mulai biar UI lobby berubah
+socket.on('gameStarted', (level) => {
+    isGameStarted = true;
+    document.getElementById('level').innerText = level;
+    document.getElementById('lobby-title').innerText = "PAUSED";
+    document.getElementById('btn-start-game').style.display = 'none';
+    document.getElementById('btn-resume').style.display = 'block';
+});
         socket.on('gameOverReset', () => { alert("Api Unggun hancur atau tim tewas! Game Over."); location.reload(); });
         controls.addEventListener('lock', () => { isPaused = false; document.getElementById('lobby-room-menu').style.display = 'none'; if (!isSpectating) { document.getElementById('crosshair').style.display = 'block'; document.getElementById('ui').style.display = 'block'; document.getElementById('flashlight-info').style.display = 'block'; } document.getElementById('level-ui').style.display = 'block'; if(isDowned) updateDownedUI(true); });
         controls.addEventListener('unlock', () => { if (document.getElementById('login-overlay').style.display === 'none' && myHp > 0) { isPaused = true; document.getElementById('lobby-room-menu').style.display = 'flex'; document.getElementById('crosshair').style.display = 'none'; if(isGameStarted) { document.getElementById('lobby-title').innerText = "PAUSED"; document.getElementById('btn-start-game').style.display = 'none'; document.getElementById('btn-resume').style.display = 'block'; } if(isDowned) updateDownedUI(false); } });
