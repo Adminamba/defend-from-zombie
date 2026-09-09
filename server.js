@@ -338,59 +338,93 @@ io.on('connection', (socket) => {
         }
     });
 
-    let reviveProgressMap = {};
+ // --- STATE & TRACKING REVIVE & DOWNED (PHASE 2 OVERHAUL) ---
+    let activeReviveState = null; 
+    let downedTimers = {};        
 
-    socket.on('holdingRevive', (data) => {
+    socket.on('reviveStartAction', (data) => {
         let roomId = socket.roomId;
         if (!roomId || !rooms[roomId]) return;
         let room = rooms[roomId];
         let targetPlayer = room.players[data.targetId];
+        let reviver = room.players[socket.id];
 
-        if (targetPlayer && targetPlayer.isDowned) {
-            let reviver = room.players[socket.id];
+        if (targetPlayer && targetPlayer.isDowned && reviver && reviver.hp > 0) {
             let dist = Math.hypot(reviver.x - targetPlayer.x, reviver.z - targetPlayer.z);
-            
-            if (dist < 6.0) {
-                if (!reviveProgressMap[data.targetId]) reviveProgressMap[data.targetId] = 0;
-                reviveProgressMap[data.targetId] += 3.33; // ~3 detik untuk menyelesaikan bar (100%)
-
-                io.to(roomId).emit('reviveProgress', { targetId: data.targetId, progress: reviveProgressMap[data.targetId] });
-
-                if (reviveProgressMap[data.targetId] >= 100) {
-                    delete reviveProgressMap[data.targetId];
-                    targetPlayer.isDowned = false;
-                    targetPlayer.hp = 30; // Bangkit dengan 30 HP
-
-                    // REWARD TEAMWORK: Berikan +75 Personal XP ke yang merevive
-                    reviver.xp = (reviver.xp || 0) + 75;
-                    
-                    let pXp = reviver.xp;
-                    let pLv = reviver.level || 1;
-                    // Sinkronisasi level otomatis sederhana jika naik
-                    if (pXp >= 6500) pLv = 10;
-                    else if (pXp >= 5200) pLv = 9;
-                    else if (pXp >= 4000) pLv = 8;
-                    else if (pXp >= 3000) pLv = 7;
-                    else if (pXp >= 2200) pLv = 6;
-                    else if (pXp >= 1500) pLv = 5;
-                    else if (pXp >= 1000) pLv = 4;
-                    else if (pXp >= 600) pLv = 3;
-                    else if (pXp >= 250) pLv = 2;
-                    reviver.level = pLv;
-
-                    io.to(socket.id).emit('syncPersonalXp', { xp: reviver.xp, level: reviver.level });
-                    io.to(roomId).emit('revived', { id: targetPlayer.id, hp: targetPlayer.hp });
+            if (dist <= 4.0) { 
+                activeReviveState = {
+                    reviverId: socket.id,
+                    targetId: data.targetId,
+                    progress: 0,
+                    startX: reviver.x,
+                    startZ: reviver.z,
+                    startTime: Date.now()
+                };
+                if (!downedTimers[data.targetId]) {
+                    downedTimers[data.targetId] = 30;
                 }
             }
         }
     });
 
-    socket.on('stopRevive', () => {
-        for (let targetId in reviveProgressMap) {
-            reviveProgressMap[targetId] = 0;
-            if (socket.roomId) io.to(socket.roomId).emit('reviveProgress', { targetId: targetId, progress: 0 });
+    socket.on('reviveHoldingAction', (data) => {
+        let roomId = socket.roomId;
+        if (!roomId || !rooms[roomId]) return;
+        let room = rooms[roomId];
+        let targetPlayer = room.players[data.targetId];
+        let reviver = room.players[socket.id];
+
+        if (!activeReviveState || activeReviveState.reviverId !== socket.id || activeReviveState.targetId !== data.targetId) return;
+
+        if (targetPlayer && targetPlayer.isDowned && reviver && reviver.hp > 0) {
+            let dist = Math.hypot(reviver.x - targetPlayer.x, reviver.z - targetPlayer.z);
+            if (dist > 4.0) { cancelRevive(roomId, data.targetId, "Terlalu Jauh"); return; }
+
+            let moveDist = Math.hypot(reviver.x - activeReviveState.startX, reviver.z - activeReviveState.startZ);
+            if (moveDist > 0.1) { cancelRevive(roomId, data.targetId, "Reviver Bergerak"); return; }
+
+            let now = Date.now();
+            let elapsedSec = (now - activeReviveState.startTime) / 1000;
+            let progress = Math.min(100, (elapsedSec / 6.0) * 100);
+            activeReviveState.progress = progress;
+
+            io.to(roomId).emit('reviveProgress', { 
+                targetId: data.targetId, progress: progress, remainingBleed: downedTimers[data.targetId] || 30 
+            });
+
+            if (progress >= 100) {
+                let targetId = activeReviveState.targetId;
+                activeReviveState = null;
+                targetPlayer.isDowned = false;
+                targetPlayer.hp = 30; 
+                delete downedTimers[targetId];
+
+                reviver.xp = (reviver.xp || 0) + 75;
+                let pXp = reviver.xp;
+                let pLv = reviver.level || 1;
+                if (pXp >= 6500) pLv = 10; else if (pXp >= 5200) pLv = 9; else if (pXp >= 4000) pLv = 8; else if (pXp >= 3000) pLv = 7; else if (pXp >= 2200) pLv = 6; else if (pXp >= 1500) pLv = 5; else if (pXp >= 1000) pLv = 4; else if (pXp >= 600) pLv = 3; else if (pXp >= 250) pLv = 2;
+                reviver.level = pLv;
+
+                io.to(socket.id).emit('syncPersonalXp', { xp: reviver.xp, level: reviver.level });
+                io.to(roomId).emit('revived', { id: targetPlayer.id, hp: targetPlayer.hp });
+            }
         }
     });
+
+    socket.on('stopReviveAction', () => {
+        if (activeReviveState && activeReviveState.reviverId === socket.id) {
+            cancelRevive(socket.roomId, activeReviveState.targetId, "Tombol C Dilepas");
+        }
+    });
+
+    function cancelRevive(roomId, targetId, reason) {
+        if (!activeReviveState) return;
+        let tId = targetId || activeReviveState.targetId;
+        activeReviveState = null;
+        if (roomId && rooms[roomId]) {
+            io.to(roomId).emit('stopReviveSinkron', { targetId: tId, remainingBleed: downedTimers[tId] || 30 });
+        }
+    }
 
     socket.on('forceSpectator', () => {
         let roomId = socket.roomId;
@@ -399,6 +433,7 @@ io.on('connection', (socket) => {
             if (player) {
                 player.isDowned = false;
                 player.hp = 0;
+                delete downedTimers[socket.id];
                 io.to(socket.id).emit('enterSpectator');
             }
         }
