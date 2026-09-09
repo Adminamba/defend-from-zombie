@@ -761,6 +761,23 @@
             }
         });
 
+        socket.on('syncZombies', (serverZombies) => {
+            // Hapus zombie yang udah nggak ada di server
+            for (let id in zombies) {
+                if (!serverZombies[id]) {
+                    scene.remove(zombies[id].mesh);
+                    delete zombies[id];
+                }
+            }
+            // Tambahkan zombie baru dari server ke layar
+            for (let id in serverZombies) {
+                if (!zombies[id]) {
+                    createZombie(serverZombies[id]); // Pastikan fungsi createZombie lu kepanggil
+                }
+            }
+            updateZombieCount(); // Update teks "Sisa Zombie"
+        });
+
         socket.on('campfireHpUpdate', (data) => {
             document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
             updateCampfireLabel(data.hp, 200);
@@ -894,6 +911,9 @@
                 document.getElementById('downed-ui').style.display = 'block';
                 camera.position.y = 2.0; // Turunkan kamera mendekati rebah
                 gunGroup.visible = false;
+                // Tundukkan senjata saat downed
+                gunGroup.position.set(1.4, -2.5, -2.0);
+                gunGroup.rotation.x = Math.PI / 4;
                 
                 // Mulai bleed timer authoritaitveauthoritaitve (Server yang pegang waktunya, client sinkronisasi)
                 document.getElementById('bleed-timer').innerText = 30;
@@ -965,6 +985,9 @@
                 // Kembalikan kamerastanding existing
                 camera.position.y = 5.5;
                 gunGroup.visible = true;
+                // Kembalikan posisi senjata normal saat hidup
+                gunGroup.position.set(1.4, -1.4, -2.5);
+                gunGroup.rotation.x = 0;
                 controls.lock();
             } else if (otherPlayers[pData.id]) {
                 // Update player lainauthoritaitve authoritaitve authoritaitve berdiriauthoritaitve
@@ -1535,20 +1558,14 @@
                     // Blok stamina regen/deplete saat downed agar tidak error
                     currentStamina = THREE.MathUtils.lerp(currentStamina, 0, 0.1); 
 
-                    // Blok aksi menembak/reload/shop ditangani di event mousedown/keydown existing.
                     
-                    // Visual untuk player sendiri (Self-Crawling Pose)
-                    // Kita rebahkan gunGroup agar senjata terlihat di bawah saat merangkak
-                    gunGroup.position.set(1.4, -2.5, -2.0); // Turun dan maju
-                    gunGroup.rotation.x = Math.PI / 4; // Menengadah
+                    
+    
 
                 } else {
                     // --- MOVEMENT NORMAL EXISTING ---
                     if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
-                    
-                    // Kembalikan visual gunGroup normal
-                    gunGroup.position.set(1.4, -1.4, -2.5);
-                    gunGroup.rotation.x = 0;
+                  
                 }
                 updateUI();
 
