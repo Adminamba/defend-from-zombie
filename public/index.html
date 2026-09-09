@@ -112,23 +112,35 @@
         .shop-btn.disabled { background: #555; cursor: not-allowed; color: #aaa; }
 
 
-
-        /* DOWNED & REVIVE UI */
+/* --- UPGRADED DOWNED & REVIVE UI (PHASE 2) --- */
         #downed-ui {
-            position: absolute; top: 30%; width: 100%; text-align: center; color: #ff3333; font-size: 28px; font-weight: bold; z-index: 150;
+            position: absolute; top: 25%; width: 100%; text-align: center; color: #ff3333; font-size: 28px; font-weight: bold; z-index: 150;
             text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         }
-        #revive-prompt {
-            position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
-            color: #00ff00; font-size: 20px; font-weight: bold; z-index: 150; display: none;
-            text-shadow: 2px 2px 4px #000; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; border: 1px solid #00ff00;
-        }
-        #revive-progress-container {
-            position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
-            width: 300px; height: 20px; background: rgba(0,0,0,0.7); border: 2px solid #fff; border-radius: 10px; z-index: 150; overflow: hidden; display: none;
-        }
-        #revive-progress-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.1s linear; }
+        #downed-bleed-info { font-size: 16px; color: #fff; margin-top: 10px; }
 
+        /* Container Revive authoritaitve (Tombol C + Lingkaran) */
+        #revive-interaction-container {
+            position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 100px; z-index: 150; display: none; align-items: center; justify-content: center;
+        }
+
+        /* SVG untuk Circular Progress */
+        #revive-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+        #revive-circle-bg { fill: none; stroke: rgba(255,255,255,0.2); stroke-width: 8; }
+        #revive-circle-progress {
+            fill: none; stroke: #00ff00; stroke-width: 8; stroke-linecap: round;
+            stroke-dasharray: 283; /* Keliling lingkaran (2 * PI * r) r=45 */
+            stroke-dashoffset: 283; /* 100% kosong awal */
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        /* Tombol C di Tengah */
+        #revive-button-visual {
+            width: 60px; height: 60px; background: rgba(0,0,0,0.6); border: 4px solid #fff; border-radius: 50%;
+            color: #fff; font-size: 32px; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 15px rgba(0,255,0,0.5); z-index: 2;
+        }
         
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -148,10 +160,22 @@
     <div id="level-ui">HARI KE- <span id="level">1</span>/99<br><span style="font-size:14px; color:#ff7700;">🔥 Campfire <span id="campfire-hp">200</span>%</span><br><span style="font-size:16px; color:#fff;">Sisa Zombie: <span id="zombie-count">0</span></span></div>
     <div id="flashlight-info">🔦 Senter (F): <span id="fl-status" style="color:#00ff00;">ON</span> | Sprint (Shift) | Lompat (Spasi)</div>
 
-    <!-- UI DOWNED & REVIVE -->
-    <div id="downed-ui">KAMU TERBARING LEMAH (DOWNED)!<br><span style="font-size:16px; color:#fff;">Tunggu teman melakukan Revive (Tahan C di dekatmu) atau kehabisan darah dalam <span id="bleed-timer">30</span>s</span></div>
-    <div id="revive-prompt">Tahan [ C ] untuk Revive Teman</div>
-    <div id="revive-progress-container"><div id="revive-progress-bar"></div></div>
+  <!-- UPGRADED UI DOWNED & REVIVE (PHASE 2) -->
+    <div id="downed-ui">
+        KAMU TERBARING LEMAH (DOWNED)!<br>
+        <div id="downed-bleed-info">Tunggu teman melakukan Revive (Tahan C di dekatmu) atau kehabisan darah dalam <span id="bleed-timer">30</span>s</div>
+    </div>
+
+    <!-- Container Interaksi Authoritative -->
+    <div id="revive-interaction-container">
+        <!-- SVG Lingkaran Progress -->
+        <svg id="revive-svg" viewBox="0 0 100 100">
+            <circle id="revive-circle-bg" cx="50" cy="50" r="45"/>
+            <circle id="revive-circle-progress" cx="50" cy="50" r="45"/>
+        </svg>
+        <!-- Visual Tombol C -->
+        <div id="revive-button-visual">C</div>
+    </div>
     
     <!-- UI EKONOMI GANDA -->
     <div id="team-coin-display">🪙 Team Coin: <span id="team-coin">0</span></div>
@@ -570,16 +594,66 @@
             const ctx = canvas.getContext('2d'); const texture = new THREE.CanvasTexture(canvas);
             const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthTest: false }));
             labelMesh.position.y = 7; labelMesh.userData = { isLabel: true }; group.add(labelMesh);
-            group.userData = { ctx, texture, labelMesh, hp: 100, username, armR, legL, legR, oFlash };
+          // SINKRONISASI CRAWLING DATA EXISTING
+            group.userData = { ctx, texture, labelMesh, hp: 100, username, armR, legL, legR, oFlash, isDowned: info.isDowned, isCrawling: false };
             updatePlayerLabel(group); return group;
         }
 
-        function updatePlayerLabel(group) {
-            const { ctx, texture, hp, username } = group.userData;
+        // --- HELPER POSE VISUAL (PHASE 2) ---
+        // Terapkan pose merangkak/terjatuh menggunakan transform existing
+        function applyCrawlingPose(group) {
+            if (group.userData.isCrawling) return; // Sudah merangkak
+            group.userData.isCrawling = true;
+
+            // Turunkan posisi seluruh grup mendekati tanah (Y=0 di server, kaki model di 0.5)
+            // Group berdiri kaki di Y=0.5, tinggi model ~5.5. Kita mau badan rebah.
+            group.position.y = 1.0; 
+
+            // Putar badan model rebah ke depan
+            group.rotation.x = -Math.PI / 2.2; // Hampir 90 derajat rebah
+
+            // Sesuaikan posisi part agar terlihat alami saat rebah
+            if(group.userData.legL) group.userData.legL.position.set(-0.6, 0.5, 0.5); 
+            if(group.userData.legR) group.userData.legR.position.set(0.6, 0.5, 0.5);
+            if(group.userData.armR) group.userData.armR.position.set(1.4, 3.0, 0); // Tangan ke depan sedikit
+
+            // Sembunyikan senjata teman yang downed (Opsional visual)
+            if(group.userData.armR && group.userData.armR.children[0]) group.userData.armR.children[0].visible = false;
+        }
+
+        // Kembalikan pose berdiri normal
+        function revertStandingPose(group) {
+            if (!group.userData.isCrawling) return;
+            group.userData.isCrawling = false;
+
+            group.position.y = 0; // Posisi dasar humanoid standing (info.y - 5.5)
+            group.rotation.x = 0; // Berdiri tegak
+
+            // Kembalikan part
+            if(group.userData.legL) group.userData.legL.position.set(-0.6, 0.5, 0);
+            if(group.userData.legR) group.userData.legR.position.set(0.6, 0.5, 0);
+            if(group.userData.armR) group.userData.armR.position.set(1.4, 3.5, -0.5);
+
+            // Munculkan kembali senjata
+            if(group.userData.armR && group.userData.armR.children[0]) group.userData.armR.children[0].visible = true;
+        }
+
+     function updatePlayerLabel(group) {
+            const { ctx, texture, hp, username, isDowned } = group.userData;
             ctx.clearRect(0, 0, 256, 64);
+            
+            // Nama Player
             ctx.font = 'Bold 20px Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(username, 128, 24);
-            ctx.fillStyle = '#ff0000'; ctx.fillRect(28, 36, 200, 16); ctx.fillStyle = '#00ff00'; ctx.fillRect(28, 36, Math.max(0, (hp / 100) * 200), 16);
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16); texture.needsUpdate = true;
+            
+            if (isDowned) {
+                // Indikator SOS Authoritative (Hanya muncul jika server bilang isDowned)
+                ctx.font = 'Bold 22px Arial'; ctx.fillStyle = '#ff3333'; ctx.fillText('🆘 BUTUH REVIVE', 128, 52);
+            } else {
+                // Bar HP Normal
+                ctx.fillStyle = '#ff0000'; ctx.fillRect(28, 36, 200, 16); ctx.fillStyle = '#00ff00'; ctx.fillRect(28, 36, Math.max(0, (hp / 100) * 200), 16);
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(28, 36, 200, 16);
+            }
+            texture.needsUpdate = true;
         }
 
         function createZombieModel(info) {
@@ -625,17 +699,35 @@
             document.getElementById('level').innerText = data.currentLevel;
             document.getElementById('campfire-hp').innerText = data.campfireHp;
             if (wallMeshes.length === 0) buildWalls(data.walls);
-            Object.keys(data.players).forEach(id => { if(id !== socket.id) addOtherPlayer(data.players[id]); });
+           Object.keys(data.players).forEach(id => { 
+                if(id !== socket.id) {
+                    addOtherPlayer(data.players[id]); 
+                    // Terapkan pose langsung jika saat join player lain downedauthoritaitve authoritaitve
+                    if(data.players[id].isDowned) {
+                        applyCrawlingPose(otherPlayers[id]);
+                        updatePlayerLabel(otherPlayers[id]);
+                    }
+                }
+            });
+            
             updateUI(); if(isGameStarted) spawnZombiesClient(data.zombies);
         });
 
         socket.on('newPlayer', (info) => { addOtherPlayer(info); updateUI(); });
         socket.on('playerLeft', (id) => { if (otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; updateUI(); } });
         
-        socket.on('playerMoved', (info) => {
-            if (otherPlayers[info.id] && otherPlayers[info.id].userData.hp > 0) {
+      socket.on('playerMoved', (info) => {
+            if (otherPlayers[info.id]) {
+                // Update posisi dasar (info.y - 5.5 untuk model humanoid existing)
                 otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
                 otherPlayers[info.id].rotation.y = info.rotationY;
+
+                // Terapkan pose rebah visual authoritaitve jika server bilang downed
+                if (otherPlayers[info.id].userData.isDowned) {
+                    applyCrawlingPose(otherPlayers[info.id]);
+                } else {
+                    revertStandingPose(otherPlayers[info.id]);
+                }
             }
         });
 
@@ -656,7 +748,7 @@
             controls.lock(); 
         });
 
-        socket.on('syncZombies', (zombieData) => { spawnZombiesClient(zombieData); });
+  
         
         socket.on('updateZombiesPosition', (zombieData) => {
             for(let zid in zombieData) {
@@ -783,49 +875,128 @@
             }
         });
 
+       // --- SINKRONISASI DOWNED & REVIVE AUTHORITATIVE (PHASE 2 EVENTS) ---
+        // Player downed authoritaitve (HP <= 0 menurut AI Zombie server)
         socket.on('playerDowned', (data) => {
             if (data.id === socket.id) {
                 isDowned = true;
-                myHp = 0;
+                myHp = 0; isShooting = false; isReloading = false; // Blok aksi
+                
                 updateUI();
+                // Blok UI Normal FPS
                 document.getElementById('quickbar-container').style.display = 'none';
                 document.getElementById('ammo-display').style.display = 'none';
                 document.getElementById('crosshair').style.display = 'none';
+                document.getElementById('inventory-modal').style.display = 'none';
+                document.getElementById('shop-modal').style.display = 'none';
+                
+                // Tampilkan UI Downedauthoritaitve
                 document.getElementById('downed-ui').style.display = 'block';
-                camera.position.y = 2.0; 
+                camera.position.y = 2.0; // Turunkan kamera mendekati rebah
                 gunGroup.visible = false;
                 
-                let bleedTime = 30;
-                document.getElementById('bleed-timer').innerText = bleedTime;
-                if (bleedInterval) clearInterval(bleedInterval);
-                bleedInterval = setInterval(() => {
-                    bleedTime--;
-                    let btElem = document.getElementById('bleed-timer');
-                    if (btElem) btElem.innerText = bleedTime;
-                    if (bleedTime <= 0) {
-                        clearInterval(bleedInterval);
-                        socket.emit('forceSpectator');
-                        document.getElementById('downed-ui').style.display = 'none';
-                    }
-                }, 1000);
+                // Mulai bleed timer authoritaitveauthoritaitve (Server yang pegang waktunya, client sinkronisasi)
+                document.getElementById('bleed-timer').innerText = 30;
+                // (Server pegang bleed loop, client hanya update label saat reviveHoldingAction dikirim)
             } else if (otherPlayers[data.id]) {
+                // Update state & visualrebah player lain authoritaitve
                 otherPlayers[data.id].userData.isDowned = true;
                 otherPlayers[data.id].userData.hp = 0;
+                applyCrawlingPose(otherPlayers[data.id]);
                 updatePlayerLabel(otherPlayers[data.id]);
             }
         });
 
+      
+
+      // Sinkronisasi Circular Progress dari Server ke Client Reviver/Downed
+        socket.on('reviveProgress', (data) => {
+            if (!reviveTargetId && !isDowned) return; // Tidak relevan
+
+            const progressCircle = document.getElementById('revive-circle-progress');
+            
+            // Tampilkan circular progress authoritaitve authoritaitve authoritaitve FPS style
+            document.getElementById('revive-interaction-container').style.display = 'flex';
+            progressCircle.style.transition = 'stroke-dashoffset 0.1s linear';
+            
+            // Hitung dashoffsetauthoritaitve authoritaitve based on progress 0-100 (dasharray=283)
+            let offset = 283 - (data.progress / 100) * 283;
+            progressCircle.style.strokeDashoffset = offset;
+
+            // Sinkronisasi Bleed Timer yang FREEZE saat revive authoritaitve authoritaitve
+            const bleedElem = document.getElementById('bleed-timer');
+            if (isDowned && bleedElem) {
+                bleedElem.innerText = Math.max(0, Math.floor(data.remainingBleed));
+            }
+        });
+
+     // Sinkronisasi Revive Batal (Progress Reset)
+        socket.on('stopReviveSinkron', (data) => {
+            // Sembunyikan progres authoritaitve authoritaitve authoritaitve FPS style
+            document.getElementById('revive-interaction-container').style.display = 'none';
+            // Reset circular visual authoritaitve
+            const progressCircle = document.getElementById('revive-circle-progress');
+            progressCircle.style.transition = 'none';
+            progressCircle.style.strokeDashoffset = '283'; // 0%
+
+            // Jika player downed, timer kembali berjalan authoritaitve authoritaitveauthoritaitve
+            const bleedElem = document.getElementById('bleed-timer');
+            if (isDowned && bleedElem) {
+                bleedElem.innerText = Math.max(0, Math.floor(data.remainingBleed));
+            }
+        });
+
+        // Sinkronisasi Revive BERHASIL (HP=30, Berdiri)
+        socket.on('revived', (pData) => {
+            if (pData.id === socket.id) {
+                isDowned = false;
+                myHp = pData.hp; // HP authoritaitveauthoritaitve dari server
+                updateUI();
+                
+                // Aktifkan UI FPS Normal existing
+                document.getElementById('quickbar-container').style.display = 'flex';
+                document.getElementById('ammo-display').style.display = 'block';
+                document.getElementById('crosshair').style.display = 'block';
+                
+                // Blok UI Downedauthoritaitve
+                document.getElementById('downed-ui').style.display = 'none';
+                document.getElementById('revive-interaction-container').style.display = 'none';
+                
+                // Kembalikan kamerastanding existing
+                camera.position.y = 5.5;
+                gunGroup.visible = true;
+                controls.lock();
+            } else if (otherPlayers[pData.id]) {
+                // Update player lainauthoritaitve authoritaitve authoritaitve berdiriauthoritaitve
+                otherPlayers[pData.id].userData.isDowned = false;
+                otherPlayers[pData.id].userData.hp = pData.hp;
+                revertStandingPose(otherPlayers[pData.id]);
+                updatePlayerLabel(otherPlayers[pData.id]);
+            }
+        });
+
+        // Sinkronisasi Mati Tanpa Revive (Masuk Spectator)
         socket.on('enterSpectator', () => {
-            // Memicu layar spectator murni jika waktu habis tanpa direvive
+            // Hapus downed timer clientauthoritaitve
+            isDowned = false;
+            document.getElementById('downed-ui').style.display = 'none';
+            document.getElementById('revive-interaction-container').style.display = 'none';
+            
+            // Masuk spectator existing (Logika mati Fase 1 existing)
             isSpectating = true;
             controls.unlock();
+            
+            // UI Mati FPS existing
             document.getElementById('ui').style.display = 'none';
             document.getElementById('flashlight-info').style.display = 'none';
             document.getElementById('death-screen').style.display = 'flex';
             document.getElementById('spectator-ui').style.display = 'block';
+            
+            // Logika ganti target existing authoritaitve authoritaitve
             spectateTargets = Object.keys(otherPlayers).filter(id => otherPlayers[id].userData.hp > 0);
             spectateIndex = 0;
             
+            // Respawn Timer existing authoritaitve authoritaitve
             let timeLeft = 60;
             document.getElementById('countdown').innerText = timeLeft;
             const btnRespawn = document.getElementById('btn-respawn');
@@ -840,25 +1011,6 @@
                     btnRespawn.disabled = false; btnRespawn.style.background = '#FFD700'; btnRespawn.style.cursor = 'pointer';
                 }
             }, 1000);
-        });
-
-        socket.on('reviveProgress', (data) => {
-            if (data.targetId === socket.id) {
-                document.getElementById('revive-progress-container').style.display = 'block';
-                document.getElementById('revive-progress-bar').style.width = data.progress + '%';
-            }
-        });
-
-        socket.on('revived', (pData) => {
-            document.getElementById('quickbar-container').style.display = 'flex';
-            document.getElementById('ammo-display').style.display = 'block';
-            document.getElementById('downed-ui').style.display = 'none';
-            document.getElementById('revive-progress-container').style.display = 'none';
-            camera.position.y = 5.5;
-            gunGroup.visible = true;
-            if (flashlightOn) flashlight.visible = true;
-            myHp = pData.hp; isDowned = false; updateUI();
-            controls.lock();
         });
 
         function addOtherPlayer(info) {
@@ -1163,9 +1315,13 @@
                 else { invModal.style.display = 'none'; controls.lock(); }
                 return;
             }
-
-            if (e.code === 'KeyC' && !isDowned && !isSpectating) {
+            
+            // --- REVIVE INPUT (PHASE 2 AUTHORITATIVE) ---
+            if (e.code === 'KeyC' && !isDowned && !isSpectating && reviveTargetId && controls.isLocked) {
+                // Client kirim input holding ke server. Server yang tentukan progress.
                 isHoldingC = true;
+                // Sembunyikan prompt tombol C saat menahan
+                document.getElementById('revive-interaction-container').style.display = 'none';
             }
 
             if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
@@ -1192,16 +1348,24 @@
                 const flStatus = document.getElementById('fl-status'); if (flStatus) { flStatus.innerText = flashlightOn ? 'ON' : 'OFF'; flStatus.style.color = flashlightOn ? '#00ff00' : '#ff4c4c'; }
             }
             if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
-            if (e.code === 'Space' && canJump && currentStamina >= 15) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
+         if (e.code === 'Space' && canJump && currentStamina >= 15 && !isDowned) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
         });
+
+        //     KEYUP
         document.addEventListener('keyup', (e) => {
             if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
             if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
             if (e.code === 'ShiftLeft') isSprinting = false;
-            if (e.code === 'KeyC') {
+          if (e.code === 'KeyC') {
                 isHoldingC = false;
-                document.getElementById('revive-progress-container').style.display = 'none';
-                socket.emit('stopRevive');
+                // Sembunyikan lingkaran progress visual
+                document.getElementById('revive-interaction-container').style.display = 'none';
+                // Reset progress bar CSS transition
+                document.getElementById('revive-circle-progress').style.transition = 'none';
+                document.getElementById('revive-circle-progress').style.strokeDashoffset = '283'; // 0%
+                
+                // Beritahu server untuk batalkan/stop revive authoritaitve
+                socket.emit('stopReviveAction');
             }
         });
 
@@ -1293,27 +1457,51 @@
             }
 
             // Cek apakah player berdiri dekat dengan player lain yang downed untuk Revive
+         // --- DETEKSI REVIVE AUTHORITATIVE (PHASE 2 DETECT) ---
+            // Player hidup cek kedekatan dengan teman downed untuk interaksi tombol [C]
             if (!isDowned && !isSpectating && controls.isLocked) {
                 let foundDowned = null;
                 for (let pid in otherPlayers) {
                     let p = otherPlayers[pid];
+                    // Server authoritaitve source untuk isDowned, gunakanUserData existing.
+                    // Cek jarakauthoritaitve authoritaitve 4.0
                     if (p.userData.isDowned && camera.position.distanceTo(p.position) < 4.0) {
                         foundDowned = pid;
                         break;
                     }
                 }
+
+                const reviveContainer = document.getElementById('revive-interaction-container');
+                const progressCircle = document.getElementById('revive-circle-progress');
+
                 if (foundDowned) {
                     reviveTargetId = foundDowned;
-                    document.getElementById('revive-prompt').style.display = 'block';
-                    if (isHoldingC) {
-                        socket.emit('holdingRevive', { targetId: reviveTargetId });
+                    
+                    if (!isHoldingC) {
+                        // Tampilkan tombol interaksi (C dalam lingkaran) FPS style
+                        reviveContainer.style.display = 'flex';
+                        progressCircle.style.transition = 'none';
+                        progressCircle.style.strokeDashoffset = '283'; // Reset 0%
+                    } else {
+                        // Sedang menahan C. Kirim event holding ke server.
+                        // Server authoritaitve authoritaitve tentukan progress.
+                        socket.emit('reviveHoldingAction', { targetId: reviveTargetId });
                     }
                 } else {
+                    // Tidak ada target atau target menjauh
                     reviveTargetId = null;
-                    document.getElementById('revive-prompt').style.display = 'none';
-                    document.getElementById('revive-progress-container').style.display = 'none';
+                    reviveContainer.style.display = 'none';
+                    if (isHoldingC) {
+                        // Batalkan secara authoritaitve authoritaitve
+                        isHoldingC = false;
+                        socket.emit('stopReviveAction');
+                    }
                 }
+            } else {
+                // Sembunyikan UI jika player sendiri downed atau spectator
+                document.getElementById('revive-interaction-container').style.display = 'none';
             }
+            
 
             if (isSpectating) {
                 if (spectateTargets.length > 0 && otherPlayers[spectateTargets[spectateIndex]]) {
@@ -1335,12 +1523,41 @@
                 velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 100.0 * delta; 
                 direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft); direction.normalize();
 
-                let speed = 400.0; let isMoving = moveForward || moveBackward || moveLeft || moveRight;
-                if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
+             let isMoving = moveForward || moveBackward || moveLeft || moveRight;
+                let speed = 400.0; // Kecepatan normal berdiri
+
+                if (isDowned) {
+                    // --- MOVEMENT KHUSUS DOWNED/CRAWLING (PHASE 2) ---
+                    // Movement autoritaitve, sangat lambat, blok aksi normal.
+                    speed = 100.0; // downedSpeed = normalSpeed * 0.25 (400 * 0.25)
+                    
+                    isSprinting = false; // Blok Sprint
+                    // Blok stamina regen/deplete saat downed agar tidak error
+                    currentStamina = THREE.MathUtils.lerp(currentStamina, 0, 0.1); 
+
+                    // Blok aksi menembak/reload/shop ditangani di event mousedown/keydown existing.
+                    
+                    // Visual untuk player sendiri (Self-Crawling Pose)
+                    // Kita rebahkan gunGroup agar senjata terlihat di bawah saat merangkak
+                    gunGroup.position.set(1.4, -2.5, -2.0); // Turun dan maju
+                    gunGroup.rotation.x = Math.PI / 4; // Menengadah
+
+                } else {
+                    // --- MOVEMENT NORMAL EXISTING ---
+                    if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
+                    
+                    // Kembalikan visual gunGroup normal
+                    gunGroup.position.set(1.4, -1.4, -2.5);
+                    gunGroup.rotation.x = 0;
+                }
                 updateUI();
 
-                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta; if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
-                controls.moveRight(-velocity.x * delta); controls.moveForward(-velocity.z * delta);
+                // Terapkan velocity authoritaitve lambat
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+                
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
 
                 if (isMoving && !isReloading) {
                     swayTime += 12 * delta;
