@@ -144,22 +144,22 @@
 
 
         /* --- UI NOTIFIKASI PLAYER JOIN/LEAVE --- */
-        #notif-container {
-            position: absolute; top: 80px; right: 20px; z-index: 500;
-            display: flex; flex-direction: column; align-items: flex-end; pointer-events: none;
-        }
-        .player-notif {
-            background: rgba(0,0,0,0.7); border-left: 4px solid #00ff00; padding: 8px 15px; margin-bottom: 5px;
-            color: white; font-weight: bold; font-size: 14px; border-radius: 4px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5); text-shadow: 1px 1px 2px #000;
-            animation: slideFadeOut 4s forwards;
-        }
-        @keyframes slideFadeOut {
-            0% { opacity: 0; transform: translateX(20px); }
-            10% { opacity: 1; transform: translateX(0); }
-            80% { opacity: 1; transform: translateX(0); }
-            100% { opacity: 0; transform: translateY(-10px); }
-        }
+     #notif-container {
+    position: absolute; top: 80px; right: 20px; z-index: 500;
+    display: flex; flex-direction: column; align-items: flex-end; pointer-events: none;
+}
+.player-notif {
+    background: rgba(0,0,0,0.8); border-left: 4px solid #00ff00; padding: 8px 15px; margin-bottom: 5px;
+    color: white; font-weight: bold; font-size: 14px; border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5); text-shadow: 1px 1px 2px #000;
+    animation: slideFadeOut 4s forwards;
+}
+@keyframes slideFadeOut {
+    0% { opacity: 0; transform: translateX(20px); }
+    10% { opacity: 1; transform: translateX(0); }
+    80% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateY(-10px); }
+}
         
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -281,18 +281,114 @@
         let activeQuickSlot = 0; 
         let isPaused = true;
         let isGameStarted = false;
-        let myHostId = null;
-        let isHost = false;
+       let myHostId = null;
+let isHost = false;
 
-        function showNotification(msg, colorBorder = '#00ff00') {
-            const container = document.getElementById('notif-container');
-            const notif = document.createElement('div');
-            notif.className = 'player-notif';
-            notif.style.borderLeftColor = colorBorder;
-            notif.innerText = msg;
-            container.appendChild(notif);
-            setTimeout(() => { if(notif.parentNode) notif.parentNode.removeChild(notif); }, 4000);
+function showNotification(msg, colorBorder = '#00ff00') {
+    const container = document.getElementById('notif-container');
+    if (!container) return;
+    const notif = document.createElement('div');
+    notif.className = 'player-notif';
+    notif.style.borderLeftColor = colorBorder;
+    notif.innerText = msg;
+    container.appendChild(notif);
+    setTimeout(() => { if(notif.parentNode) notif.parentNode.removeChild(notif); }, 4000);
+}
+
+function addOtherPlayer(info) {
+    if (otherPlayers[info.id]) return; 
+    const model = createHumanoidModel(info.color, info.username);
+    model.position.set(info.x, info.y - 5.5, info.z); 
+    if (info.isDowned) { applyCrawlingPose(model); }
+    scene.add(model); 
+    otherPlayers[info.id] = model;
+}
+
+// Handler Sinkronisasi Ruangan yang Terpusat & Bersih
+socket.on('joinRoomSuccess', (data) => {
+    myHostId = data.hostId;
+    isHost = (socket.id === myHostId);
+    isGameStarted = (data.gameState === 'PLAYING'); 
+    
+    if (isHost) {
+        document.getElementById('btn-start-game').style.display = 'block';
+        let hw = document.getElementById('host-warning');
+        if(hw) hw.style.display = 'none';
+    } else {
+        document.getElementById('btn-start-game').style.display = 'none';
+        let hw = document.getElementById('host-warning');
+        if(hw) hw.style.display = 'block';
+    }
+
+    document.getElementById('level').innerText = data.level;
+    document.getElementById('campfire-hp').innerText = data.campfireHp;
+    if (wallMeshes.length === 0 && typeof buildWalls === 'function') buildWalls(data.walls);
+
+    teamCoin = data.teamCoin || 0;
+    document.getElementById('team-coin').innerText = teamCoin;
+
+    // Render player lain yang sudah ada di room
+    Object.keys(data.players).forEach(id => { 
+        if(id !== socket.id) addOtherPlayer(data.players[id]); 
+    });
+
+    document.getElementById('player-count').innerText = data.playerCount;
+    let lpc = document.getElementById('lobby-player-count');
+    if(lpc) lpc.innerText = data.playerCount;
+
+    // Mid-Game Join Snapshot Handler
+    if(isGameStarted) { 
+        if(typeof spawnZombiesClient === 'function') spawnZombiesClient(data.zombies);
+        let lt = document.getElementById('lobby-title');
+        if(lt) lt.innerText = "GAME SEDANG BERJALAN!";
+        document.getElementById('btn-start-game').style.display = 'none';
+        let br = document.getElementById('btn-resume');
+        if(br) br.style.display = 'block';
+    }
+});
+
+socket.on('playerJoined', (data) => {
+    addOtherPlayer(data.player);
+    document.getElementById('player-count').innerText = data.playerCount;
+    let lpc = document.getElementById('lobby-player-count');
+    if(lpc) lpc.innerText = data.playerCount;
+    showNotification(`👤 ${data.player.username} masuk`, '#00ff00');
+});
+
+socket.on('playerLeft', (data) => {
+    if (otherPlayers[data.id]) { 
+        scene.remove(otherPlayers[data.id]); 
+        delete otherPlayers[data.id]; 
+    }
+    document.getElementById('player-count').innerText = data.playerCount;
+    let lpc = document.getElementById('lobby-player-count');
+    if(lpc) lpc.innerText = data.playerCount;
+    showNotification(`👤 ${data.name} keluar`, '#ff3333');
+
+    if (data.newHostId && data.newHostId !== myHostId) {
+        myHostId = data.newHostId;
+        isHost = (socket.id === myHostId);
+        if (isHost && !isGameStarted) {
+            showNotification("👑 Anda sekarang adalah Host Room!", '#ffd700');
+            document.getElementById('btn-start-game').style.display = 'block';
+            let hw = document.getElementById('host-warning');
+            if(hw) hw.style.display = 'none';
         }
+    }
+});
+
+socket.on('playerMoved', (pData) => {
+    if (otherPlayers[pData.id]) {
+        let m = otherPlayers[pData.id];
+        m.position.set(pData.x, pData.y - 5.5, pData.z);
+        m.rotation.y = pData.rotationY;
+        if (pData.isDowned) {
+            if (typeof applyCrawlingPose === 'function') applyCrawlingPose(m);
+        } else {
+            if (typeof resetStandingPose === 'function') resetStandingPose(m);
+        }
+    }
+});
         
         let maxStamina = 100; let currentStamina = 100;
         let serverWalls = []; let wallMeshes = [];
@@ -727,97 +823,12 @@
             hbCtx.strokeStyle = '#ffffff'; hbCtx.lineWidth = 3; hbCtx.strokeRect(0, 0, 128, 16); hbTexture.needsUpdate = true;
         }
 
-        // --- 1. MID-GAME SNAPSHOT & INIT ROOM (AUTHORITATIVE) ---
-        socket.on('joinRoomSuccess', (data) => {
-            myHostId = data.hostId;
-            isHost = (socket.id === myHostId);
-            isGameStarted = (data.gameState === 'PLAYING'); 
-            
-            // Atur UI Host
-            if (isHost) {
-                document.getElementById('btn-start-game').style.display = 'block';
-                document.getElementById('host-warning').style.display = 'none';
-            } else {
-                document.getElementById('btn-start-game').style.display = 'none';
-                document.getElementById('host-warning').style.display = 'block';
-            }
-
-            // Sync Data Dasar
-            document.getElementById('level').innerText = data.level;
-            document.getElementById('campfire-hp').innerText = data.campfireHp;
-            if (wallMeshes.length === 0) buildWalls(data.walls);
-
-            // Sync Team Coin
-            teamCoin = data.teamCoin || 0;
-            document.getElementById('team-coin').innerText = teamCoin;
-
-            // Spawn Player yang sudah ada di room
-            Object.keys(data.players).forEach(id => { 
-                if(id !== socket.id) addOtherPlayer(data.players[id]); 
-            });
-
-            // Update UI Total Player
-            document.getElementById('player-count').innerText = data.playerCount;
-            document.getElementById('lobby-player-count').innerText = data.playerCount;
-
-            // MID-GAME JOIN LOGIC: Jika game sudah jalan, langsung spawn zombie & siap main
-            if(isGameStarted) { 
-                spawnZombiesClient(data.zombies);
-                document.getElementById('lobby-title').innerText = "GAME SEDANG BERJALAN!";
-                document.getElementById('btn-start-game').style.display = 'none';
-                document.getElementById('host-warning').style.display = 'none';
-                document.getElementById('btn-resume').style.display = 'block';
-            }
-            updateUI();
-        });
-
-        // --- 2. PLAYER LAIN JOIN ---
-        socket.on('playerJoined', (data) => {
-            addOtherPlayer(data.player);
-            document.getElementById('player-count').innerText = data.playerCount;
-            document.getElementById('lobby-player-count').innerText = data.playerCount;
-            showNotification(`👤 ${data.player.username} masuk`, '#00ff00');
-        });
-
-        // --- 3. PLAYER KELUAR & HOST MIGRATION ---
-        socket.on('playerLeft', (data) => {
-            if (otherPlayers[data.id]) { 
-                scene.remove(otherPlayers[data.id]); 
-                delete otherPlayers[data.id]; 
-            }
-            document.getElementById('player-count').innerText = data.playerCount;
-            document.getElementById('lobby-player-count').innerText = data.playerCount;
-            showNotification(`👤 ${data.name} keluar`, '#ff3333');
-
-            // Handle Host Migration
-            if (data.newHostId !== myHostId) {
-                myHostId = data.newHostId;
-                isHost = (socket.id === myHostId);
-                if (isHost && !isGameStarted) {
-                    showNotification("👑 Kamu sekarang adalah Host!", '#ffd700');
-                    document.getElementById('btn-start-game').style.display = 'block';
-                    document.getElementById('host-warning').style.display = 'none';
-                }
-            }
-        });
-
-       
-       
         
-      socket.on('playerMoved', (info) => {
-            if (otherPlayers[info.id]) {
-                // Update posisi dasar (info.y - 5.5 untuk model humanoid existing)
-                otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
-                otherPlayers[info.id].rotation.y = info.rotationY;
+      
 
-                // Terapkan pose rebah visual authoritaitve jika server bilang downed
-                if (otherPlayers[info.id].userData.isDowned) {
-                    applyCrawlingPose(otherPlayers[info.id]);
-                } else {
-                    revertStandingPose(otherPlayers[info.id]);
-                }
-            }
-        });
+       
+       
+    
 
         socket.on('otherPlayerAction', (data) => {
             if (otherPlayers[data.id] && otherPlayers[data.id].userData.hp > 0) {
@@ -1153,18 +1164,6 @@
                 }
             }, 1000);
         });
-
-        function addOtherPlayer(info) {
-            // Cegah duplikasi mesh jika player sudah ada
-            if (otherPlayers[info.id]) return; 
-
-            const model = createHumanoidModel(info.color, info.username);
-            model.position.set(info.x, info.y - 5.5, info.z); 
-            if (info.isDowned) { applyCrawlingPose(model); }
-            
-            scene.add(model); 
-            otherPlayers[info.id] = model;
-        }
 
         function spawnZombiesClient(zData) {
             for(let zid in zombies) scene.remove(zombies[zid]); zombies = {};
@@ -1675,18 +1674,10 @@
                 let speed = 400.0; // Kecepatan normal berdiri
 
                 if (isDowned) {
-                    // --- MOVEMENT KHUSUS DOWNED/CRAWLING (PHASE 2) ---
-                    // Movement autoritaitve, sangat lambat, blok aksi normal.
-                    speed = 100.0; // downedSpeed = normalSpeed * 0.25 (400 * 0.25)
-                    
-                    isSprinting = false; // Blok Sprint
-                    // Blok stamina regen/deplete saat downed agar tidak error
-                    currentStamina = THREE.MathUtils.lerp(currentStamina, 0, 0.1); 
-
-                    
-                    
-    
-
+                speed = 200.0; // Kecepatan pelan saat downed (merangkak)
+                isSprinting = false; 
+                canJump = false;
+                currentStamina = THREE.MathUtils.lerp(currentStamina, 0, 0.1);
                 } else {
                     // --- MOVEMENT NORMAL EXISTING ---
                     if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
