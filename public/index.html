@@ -787,7 +787,7 @@
                     let newZombieMesh = createZombieModel(zData); 
 
                     // CEK POSISI Y (Jangan sampai 0 biar nggak tenggelam)
-                    newZombieMesh.position.set(zData.x, 2, zData.z); 
+                    newZombieMesh.position.set(zData.x, 0, zData.z); 
 
                     scene.add(newZombieMesh);
                     zombies[id] = newZombieMesh;
@@ -803,7 +803,7 @@
                 updateZombieCount();
             } else {
                 // Fallback kalau nama fungsinya beda
-                let uiElement = document.getElementById('sisa-zombie'); 
+                let uiElement = document.getElementById('zombie-count'); 
                 if (uiElement) uiElement.innerText = count;
             }
         });
