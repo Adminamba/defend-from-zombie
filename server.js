@@ -183,11 +183,10 @@ app.get('/rooms', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('joinRoom', ({ username, roomId, roomName }) => {
+ socket.on('joinRoom', ({ username, roomId, roomName }) => {
         if (!rooms[roomId]) {
-            // Pembuat room pertama otomatis jadi HOST
             rooms[roomId] = { 
-                id: roomId, name: roomName, players: {}, zombies: {}, 
+                id: roomId, name: roomName || roomId, players: {}, zombies: {}, 
                 level: 1, gameState: 'LOBBY', walls: generateBaseWalls(),
                 campfireHp: 200, maxCampfireHp: 200, teamCoin: 0,
                 hostId: socket.id 
@@ -201,19 +200,19 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         socket.roomId = roomId;
 
-        // Spawn acak aman
         let spawnX = (Math.random() - 0.5) * 10;
         let spawnZ = 20 + (Math.random() - 0.5) * 10;
 
         room.players[socket.id] = {
             id: socket.id, username: username || 'Player',
             x: spawnX, y: 5.5, z: spawnZ,
-            rotationY: 0, hp: 100, isDowned: false, xp: 0, level: 1, color: Math.floor(Math.random()*16777215)
+            rotationY: 0, hp: 100, isDowned: false, xp: 0, level: 1, 
+            color: Math.floor(Math.random() * 16777215)
         };
         
         let pCount = Object.keys(room.players).length;
 
-        // 1. KIRIM SNAPSHOT PENUH KE PLAYER BARU
+        // Kirim snapshot penuh ke player baru yang join (mendukung mid-game join)
         socket.emit('joinRoomSuccess', { 
             roomId: room.id, roomName: room.name, hostId: room.hostId,
             players: room.players, playerCount: pCount,
@@ -223,7 +222,7 @@ io.on('connection', (socket) => {
             teamCoin: room.teamCoin
         });
         
-        // 2. BERITAHU PLAYER LAMA ADA YANG MASUK
+        // Beritahu player lain di room
         socket.broadcast.to(roomId).emit('playerJoined', {
             player: room.players[socket.id],
             playerCount: pCount
@@ -244,20 +243,23 @@ io.on('connection', (socket) => {
         }
     });
 
- socket.on('startGame', () => {
+socket.on('startGame', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
             
-            // --- VALIDASI SERVER AUTHORITATIVE KHUSUS HOST ---
+            // Validasi ketat server: Hanya Host yang bisa start game
             if (socket.id !== room.hostId) {
-                return socket.emit('roomError', 'Akses ditolak: Hanya Host yang bisa memulai game.');
+                return socket.emit('roomError', 'Akses ditolak: Hanya Pembuat Room (Host) yang dapat memulai game.');
             }
 
             if (room.gameState === 'LOBBY') {
-                room.gameState = 'PLAYING'; room.level = 1; room.campfireHp = 200; 
+                room.gameState = 'PLAYING'; 
+                room.level = 1; 
+                room.campfireHp = 200; 
                 spawnZombies(room);
                 Object.values(room.players).forEach(p => { 
-                    p.hp = 100; p.isDowned = false; 
+                    p.hp = 100; 
+                    p.isDowned = false; 
                     io.to(socket.roomId).emit('playerHpUpdate', { id: p.id, hp: p.hp }); 
                 });
                 io.to(socket.roomId).emit('gameStarted', room.level);
@@ -265,14 +267,18 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('playerMove', (data) => {
+   socket.on('playerMove', (data) => {
         if (socket.roomId && rooms[socket.roomId]) {
             let p = rooms[socket.roomId].players[socket.id];
             if (p) {
-                p.x = data.x; p.y = data.y; p.z = data.z; p.rotationY = data.rotationY;
+                p.x = data.x; 
+                p.y = data.y; 
+                p.z = data.z; 
+                p.rotationY = data.rotationY;
+                if (typeof data.isDowned !== 'undefined') {
+                    p.isDowned = data.isDowned;
+                }
                 
-                // SinkronisasiAuthoritaitve Lambat (Speed 100-600) authoritaitve authoritaitve
-                // Movement dikirimauthoritaitve lambat, player lain melihat lambatauthoritaitve authoritaitve
                 socket.broadcast.to(socket.roomId).emit('playerMoved', p);
             }
         }
@@ -463,28 +469,21 @@ io.on('connection', (socket) => {
   
 
     
-  socket.on('disconnect', () => {
+ socket.on('disconnect', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
-            
-            // Simpan nama sebelum dihapus untuk notifikasi
             let pName = room.players[socket.id] ? room.players[socket.id].username : 'Player';
             
             delete room.players[socket.id];
             let pCount = Object.keys(room.players).length;
 
             if (pCount === 0) { 
-                // Room kosong, hapus
                 delete rooms[socket.roomId]; 
                 io.emit('roomListUpdated'); 
             } else {
-                // Handle Host Migration jika yang keluar adalah Host
                 if (socket.id === room.hostId) {
-                    // Berikan title Host ke player pertama yang masih ada di room
-                    room.hostId = Object.keys(room.players)[0];
+                    room.hostId = Object.keys(room.players)[0]; // Host migration aman
                 }
-
-                // Beritahu client lain siapa yang keluar dan siapa Host baru
                 io.to(socket.roomId).emit('playerLeft', { 
                     id: socket.id, 
                     name: pName, 
