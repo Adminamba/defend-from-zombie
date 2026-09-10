@@ -183,34 +183,52 @@ app.get('/rooms', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    socket.on('joinRoom', ({ username, roomId, roomName }) => {
+  socket.on('joinRoom', ({ username, roomId, roomName }) => {
         if (!rooms[roomId]) {
+            // Pembuat room pertama otomatis jadi HOST
             rooms[roomId] = { 
                 id: roomId, name: roomName, players: {}, zombies: {}, 
                 level: 1, gameState: 'LOBBY', walls: generateBaseWalls(),
-                campfireHp: 200, maxCampfireHp: 200 
+                campfireHp: 200, maxCampfireHp: 200, teamCoin: 0,
+                hostId: socket.id 
             };
         }
         let room = rooms[roomId];
         if (Object.keys(room.players).length >= MAX_PLAYERS_PER_ROOM) {
-            socket.emit('roomError', 'Room Penuh!'); return;
+            return socket.emit('roomError', 'Room Penuh!');
         }
 
         socket.join(roomId);
         socket.roomId = roomId;
 
-       room.players[socket.id] = {
+        // Spawn acak aman
+        let spawnX = (Math.random() - 0.5) * 10;
+        let spawnZ = 20 + (Math.random() - 0.5) * 10;
+
+        room.players[socket.id] = {
             id: socket.id, username: username || 'Player',
-            x: (Math.random() - 0.5) * 10, y: 5.5, z: 20 + (Math.random() - 0.5) * 10,
-            rotationY: 0, hp: 100, isDowned: false, color: Math.floor(Math.random()*16777215)
+            x: spawnX, y: 5.5, z: spawnZ,
+            rotationY: 0, hp: 100, isDowned: false, xp: 0, level: 1, color: Math.floor(Math.random()*16777215)
         };
         
-        socket.emit('initGameData', { 
-            players: room.players, gameState: room.gameState, 
-            currentLevel: room.level, zombies: room.zombies, 
-            walls: room.walls, campfireHp: room.campfireHp, maxCampfireHp: room.maxCampfireHp 
+        let pCount = Object.keys(room.players).length;
+
+        // 1. KIRIM SNAPSHOT PENUH KE PLAYER BARU
+        socket.emit('joinRoomSuccess', { 
+            roomId: room.id, roomName: room.name, hostId: room.hostId,
+            players: room.players, playerCount: pCount,
+            gameState: room.gameState, level: room.level, 
+            zombies: room.zombies, walls: room.walls, 
+            campfireHp: room.campfireHp, maxCampfireHp: room.maxCampfireHp,
+            teamCoin: room.teamCoin
         });
-        socket.broadcast.to(roomId).emit('newPlayer', room.players[socket.id]);
+        
+        // 2. BERITAHU PLAYER LAMA ADA YANG MASUK
+        socket.broadcast.to(roomId).emit('playerJoined', {
+            player: room.players[socket.id],
+            playerCount: pCount
+        });
+        
         io.emit('roomListUpdated');
     });
 
@@ -226,13 +244,22 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('startGame', () => {
+ socket.on('startGame', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
+            
+            // --- VALIDASI SERVER AUTHORITATIVE KHUSUS HOST ---
+            if (socket.id !== room.hostId) {
+                return socket.emit('roomError', 'Akses ditolak: Hanya Host yang bisa memulai game.');
+            }
+
             if (room.gameState === 'LOBBY') {
                 room.gameState = 'PLAYING'; room.level = 1; room.campfireHp = 200; 
                 spawnZombies(room);
-                Object.values(room.players).forEach(p => { p.hp = 100; io.to(socket.roomId).emit('playerHpUpdate', { id: p.id, hp: p.hp }); });
+                Object.values(room.players).forEach(p => { 
+                    p.hp = 100; p.isDowned = false; 
+                    io.to(socket.roomId).emit('playerHpUpdate', { id: p.id, hp: p.hp }); 
+                });
                 io.to(socket.roomId).emit('gameStarted', room.level);
             }
         }
@@ -436,15 +463,37 @@ io.on('connection', (socket) => {
   
 
     
-    socket.on('disconnect', () => {
+  socket.on('disconnect', () => {
         if (socket.roomId && rooms[socket.roomId]) {
             let room = rooms[socket.roomId];
+            
+            // Simpan nama sebelum dihapus untuk notifikasi
+            let pName = room.players[socket.id] ? room.players[socket.id].username : 'Player';
+            
             delete room.players[socket.id];
-            io.to(socket.roomId).emit('playerLeft', socket.id);
-            if (Object.keys(room.players).length === 0) { delete rooms[socket.roomId]; io.emit('roomListUpdated'); }
+            let pCount = Object.keys(room.players).length;
+
+            if (pCount === 0) { 
+                // Room kosong, hapus
+                delete rooms[socket.roomId]; 
+                io.emit('roomListUpdated'); 
+            } else {
+                // Handle Host Migration jika yang keluar adalah Host
+                if (socket.id === room.hostId) {
+                    // Berikan title Host ke player pertama yang masih ada di room
+                    room.hostId = Object.keys(room.players)[0];
+                }
+
+                // Beritahu client lain siapa yang keluar dan siapa Host baru
+                io.to(socket.roomId).emit('playerLeft', { 
+                    id: socket.id, 
+                    name: pName, 
+                    playerCount: pCount, 
+                    newHostId: room.hostId 
+                });
+            }
         }
     });
-});
 
 
 const PORT = process.env.PORT || 8080;
