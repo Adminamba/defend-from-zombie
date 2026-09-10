@@ -500,4 +500,4 @@ let room = rooms[socket.roomId];
 });
 
 const PORT = process.env.PORT || 8080;
-http.listen(PORT, '0.0.0.0', () => { console.log(Server jalan di port ${PORT}); });
+http.listen(PORT, '0.0.0.0', () => { console.log(`Server jalan di port ${PORT}`); });
