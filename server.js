@@ -497,7 +497,6 @@ let room = rooms[socket.roomId];
         }
     }
 });
-
 });
 
 const PORT = process.env.PORT || 8080;
