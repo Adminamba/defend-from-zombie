@@ -750,34 +750,64 @@
 
   
         
-        socket.on('updateZombiesPosition', (zombieData) => {
-            for(let zid in zombieData) {
-                if(zombies[zid]) {
-                    let oldPos = zombies[zid].position.clone();
-                    let newPos = new THREE.Vector3(zombieData[zid].x, 0, zombieData[zid].z);
-                    zombies[zid].position.copy(newPos);
-                    zombies[zid].userData.hbMesh.lookAt(camera.position);
+     socket.on('updateZombiesPosition', (serverZombies) => {
+            for (let id in serverZombies) {
+                if (zombies[id]) {
+                    // Support kalau bentuk objectnya beda
+                    let zMesh = zombies[id].mesh || zombies[id];
+                    zMesh.position.x = serverZombies[id].x;
+                    zMesh.position.z = serverZombies[id].z;
+                    // zMesh.rotation.y = ... (kalau lu ada logic nengok)
                 }
             }
         });
 
-        socket.on('syncZombies', (serverZombies) => {
-            // Hapus zombie yang udah nggak ada di server
+       socket.on('syncZombies', (serverZombies) => {
+            // 1. CEK EVENT DITERIMA CLIENT
+            console.log('[CLIENT] syncZombies received:', serverZombies);
+            console.log('[CLIENT] zombie count dari server:', Object.keys(serverZombies || {}).length);
+
+            // 2. HAPUS ZOMBIE YANG SUDAH MATI
             for (let id in zombies) {
                 if (!serverZombies[id]) {
-                    scene.remove(zombies[id].mesh);
+                    // Support kalau lu simpan di dalam properti .mesh
+                    let zMesh = zombies[id].mesh || zombies[id]; 
+                    scene.remove(zMesh);
                     delete zombies[id];
                 }
             }
-            // Tambahkan zombie baru dari server ke layar
+
+            // 3. SPAWN ZOMBIE BARU KE SCENE
             for (let id in serverZombies) {
                 if (!zombies[id]) {
-                    createZombie(serverZombies[id]); // Pastikan fungsi createZombie lu kepanggil
+                    let zData = serverZombies[id];
+
+                    // PANGGIL FUNGSI EXISTING LU DI SINI:
+                    // Kalau di script lu namanya createZombieModel, pakai ini:
+                    let newZombieMesh = createZombieModel(zData); 
+
+                    // CEK POSISI Y (Jangan sampai 0 biar nggak tenggelam)
+                    newZombieMesh.position.set(zData.x, 2, zData.z); 
+
+                    scene.add(newZombieMesh);
+                    zombies[id] = newZombieMesh;
                 }
             }
-            updateZombieCount(); // Update teks "Sisa Zombie"
-        });
 
+            // 4. CEK APAKAH ZOMBIE BENAR-BENAR MASUK SCENE
+            let count = Object.keys(zombies).length;
+            console.log('[CLIENT] zombie berhasil masuk scene:', count);
+
+            // 5. UPDATE UI EXISTING
+            if (typeof updateZombieCount === 'function') {
+                updateZombieCount();
+            } else {
+                // Fallback kalau nama fungsinya beda
+                let uiElement = document.getElementById('sisa-zombie'); 
+                if (uiElement) uiElement.innerText = count;
+            }
+        });
+        
         socket.on('campfireHpUpdate', (data) => {
             document.getElementById('campfire-hp').innerText = Math.max(0, data.hp);
             updateCampfireLabel(data.hp, 200);
