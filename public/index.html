@@ -1512,14 +1512,14 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         }
         
         // --- REVIVE INPUT (PHASE 2 AUTHORITATIVE) ---
-        if (e.code === 'KeyC' && !isDowned && !isSpectating && reviveTargetId && controls.isLocked) {
+        if (e.code === 'KeyG' && !isDowned && !isSpectating && reviveTargetId && controls.isLocked) {
             // Client kirim input holding ke server. Server yang tentukan progress.
             isHoldingC = true;
             // Sembunyikan prompt tombol C saat menahan
             document.getElementById('revive-interaction-container').style.display = 'none';
         }
 
-        if (e.code === 'ControlLeft' || e.code === 'ControlRight') { isCrouching = true; }
+        if (e.code === 'keyC' ) { isCrouching = true; }
 
         if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
             isReloading = false;
@@ -1553,7 +1553,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false;
         if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false;
         if (e.code === 'ShiftLeft') isSprinting = false;
-      if (e.code === 'KeyC') {
+      if (e.code === 'KeyG') {
             isHoldingC = false;
             // Sembunyikan lingkaran progress visual
             document.getElementById('revive-interaction-container').style.display = 'none';
@@ -1565,7 +1565,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             socket.emit('stopReviveAction');
         }
 
-        if (e.code === 'ControlLeft' || e.code === 'ControlRight') { isCrouching = false; }
+        if (e.code === 'keyC') { isCrouching = false; }
     });
 
     let prevTime = performance.now();
