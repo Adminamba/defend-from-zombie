@@ -1379,11 +1379,23 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
        playGunSound(wId); 
         socket.emit('playerShootVisual');
         
-        // Muzzle Flash Effect (Nyala Singkat)
+       function fireWeapon() {
+    // ... (kode raycaster / hitungan peluru lu yang lama biarin aja) ...
+
+    playGunSound(wId); 
+    socket.emit('playerShootVisual');
+    
+    // ---> PASTE KODE YANG BARU DI SINI <---
+    if (typeof muzzleFlash !== 'undefined' && typeof muzzleSprite !== 'undefined') {
         muzzleFlash.intensity = 5; 
         muzzleSprite.visible = true; 
-        muzzleSprite.rotation = Math.random() * Math.PI; // Rotasi acak ala CS
-        setTimeout(() => { muzzleFlash.intensity = 0; muzzleSprite.visible = false; }, 50);
+        muzzleSprite.material.rotation = Math.random() * Math.PI; 
+        setTimeout(() => { 
+            muzzleFlash.intensity = 0; 
+            muzzleSprite.visible = false; 
+        }, 50);
+    }
+}
 
         
         // Animasi senjata nendang ke belakang
@@ -1519,7 +1531,10 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             document.getElementById('revive-interaction-container').style.display = 'none';
         }
 
-        if (e.code === 'keyC' ) { isCrouching = true; }
+        // Ganti yang awalnya ControlLeft/ControlRight jadi ini:
+if (e.code === 'KeyC') { 
+    isCrouching = true; 
+}
 
         if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
             isReloading = false;
@@ -1544,7 +1559,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             flashlightOn = !flashlightOn; flashlight.visible = flashlightOn; 
             const flStatus = document.getElementById('fl-status'); if (flStatus) { flStatus.innerText = flashlightOn ? 'ON' : 'OFF'; flStatus.style.color = flashlightOn ? '#00ff00' : '#ff4c4c'; }
         }
-        if (e.code === 'KeyQ') { controls.isLocked ? controls.unlock() : controls.lock(); }
+        if (e.code === 'KeyP') { controls.isLocked ? controls.unlock() : controls.lock(); }
      if (e.code === 'Space' && canJump && currentStamina >= 15 && !isDowned) { velocity.y += 180; canJump = false; currentStamina -= 15; updateUI(); }
     });
 
@@ -1565,7 +1580,10 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             socket.emit('stopReviveAction');
         }
 
-        if (e.code === 'keyC') { isCrouching = false; }
+        // Ganti juga di bagian keyup biar pas dilepas dia berdiri lagi:
+if (e.code === 'KeyC') { 
+    isCrouching = false; 
+}
     });
 
     let prevTime = performance.now();
