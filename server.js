@@ -56,25 +56,27 @@ let hpBase = type === 'kuat' ? 6 : 3;
     let radius = 160 + Math.random() * 40; 
 
     room.zombies[id] = {
-        id: id, type: type,
-        x: Math.cos(angle) * radius, 
-        z: Math.sin(angle) * radius,
-        hp: hpBase + Math.floor(room.level / 2), 
-        maxHp: hpBase + Math.floor(room.level / 2),
-        speed: (type === 'kuat' ? 12 : 8) + (room.level * 0.4),
-        lastAttack: 0 
-    };
-}
-
-if (room.level % 5 === 0) {
-    let bossId = 'zombie_boss_' + Date.now();
-    room.zombies[bossId] = {
-        id: bossId, type: 'boss',
-        x: 0, z: -220,
-        hp: 25 * room.level, maxHp: 25 * room.level, 
-        speed: 9 + (room.level * 0.2), lastAttack: 0
-    };
-}
+            id: id, type: type,
+            x: Math.cos(angle) * radius, 
+            z: Math.sin(angle) * radius,
+            hp: hpBase + Math.floor(room.level / 2), 
+            maxHp: hpBase + Math.floor(room.level / 2),
+            // SPEED DITINGKATKAN ~15% AGAR MENANTANG
+            speed: (type === 'kuat' ? 13.8 : 9.2) + (room.level * 0.45),
+            lastAttack: 0 
+        };
+    }
+    
+    if (room.level % 5 === 0) {
+        let bossId = 'zombie_boss_' + Date.now();
+        room.zombies[bossId] = {
+            id: bossId, type: 'boss',
+            x: 0, z: -220,
+            hp: 25 * room.level, maxHp: 25 * room.level, 
+            // BOSS SPEED DITINGKATKAN
+            speed: 10.3 + (room.level * 0.25), lastAttack: 0
+        };
+    }
 io.to(room.id).emit('syncZombies', room.zombies);
 
 }
@@ -269,17 +271,15 @@ let room = rooms[socket.roomId];
 });
 
 socket.on('playerMove', (data) => {
-    if (socket.roomId && rooms[socket.roomId]) {
-        let p = rooms[socket.roomId].players[socket.id];
-        if (p) {
-            p.x = data.x; p.y = data.y; p.z = data.z; p.rotationY = data.rotationY;
-            
-            // SinkronisasiAuthoritaitve Lambat (Speed 100-600) authoritaitve authoritaitve
-            // Movement dikirimauthoritaitve lambat, player lain melihat lambatauthoritaitve authoritaitve
-            socket.broadcast.to(socket.roomId).emit('playerMoved', p);
+        if (socket.roomId && rooms[socket.roomId]) {
+            let p = rooms[socket.roomId].players[socket.id];
+            if (p) {
+                p.x = data.x; p.y = data.y; p.z = data.z; p.rotationY = data.rotationY;
+                p.isCrouching = data.isCrouching; // Menerima state Crouch
+                socket.broadcast.to(socket.roomId).emit('playerMoved', p);
+            }
         }
-    }
-});
+    });
 
 socket.on('playerShootVisual', () => {
     if (socket.roomId) socket.broadcast.to(socket.roomId).emit('otherPlayerShot', socket.id);
