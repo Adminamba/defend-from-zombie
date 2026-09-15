@@ -283,6 +283,8 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
     let activeQuickSlot = 0; 
     let isPaused = true;
     let isGameStarted = false;
+    let isCrouching = false;
+    let currentBaseY = 5.5; // Untuk smooth crouch
     let myHostId = null;
     let isHost = false;
 
@@ -383,9 +385,35 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
 
     const gunGroup = new THREE.Group();
     let currentGunMeshName = 'default';
-    const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
+   const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
     muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash);
     gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
+
+    // -- MUZZLE FLASH TEXTURE (CS-Style) --
+    function createMuzzleFlashTexture() {
+        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(0.2, 'rgba(255, 255, 0, 0.8)');
+        grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        ctx.fillStyle = grad; ctx.beginPath();
+        for(let i=0; i<8; i++) {
+            ctx.moveTo(64,64); let angle = i * Math.PI/4;
+            ctx.lineTo(64 + Math.cos(angle)*50, 64 + Math.sin(angle)*50);
+        }
+        ctx.fill(); return new THREE.CanvasTexture(canvas);
+    }
+    const muzzleSpriteMat = new THREE.SpriteMaterial({ map: createMuzzleFlashTexture(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
+    const muzzleSprite = new THREE.Sprite(muzzleSpriteMat);
+    muzzleSprite.scale.set(1.5, 1.5, 1);
+    muzzleSprite.visible = false;
+    muzzleFlash.add(muzzleSprite); // Tempel ke lampu
+    gunGroup.add(muzzleFlash);
+    gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
+
+
+
 
     function updateGunModel(gunKey) {
         currentGunMeshName = gunKey;
@@ -619,9 +647,12 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         const tgBody = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x222222 })); tgBody.position.set(0, -1.2, -0.5);
         const tgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })); tgBarrel.rotation.x = Math.PI / 2; tgBarrel.position.set(0, -1.1, -1.4);
         tGun.add(tgBody); tGun.add(tgBarrel);
-        const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -1.1, -2); tGun.add(oFlash);
-        armR.add(tGun); group.add(armR);
-
+        const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -1.1, -2); 
+        const oFlashSprite = new THREE.Sprite(muzzleSpriteMat);
+        oFlashSprite.scale.set(1.5, 1.5, 1); oFlashSprite.visible = false;
+        oFlash.add(oFlashSprite);
+        tGun.add(oFlash); armR.add(tGun); group.add(armR);
+        
         const legL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legL.position.set(-0.6, 0.5, 0); group.add(legL);
         const legR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); legR.position.set(0.6, 0.5, 0); group.add(legR);
 
@@ -811,6 +842,8 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             // Update posisi dasar (info.y - 5.5 untuk model humanoid existing)
             otherPlayers[info.id].position.set(info.x, info.y - 5.5, info.z); 
             otherPlayers[info.id].rotation.y = info.rotationY;
+            // Di bawah otherPlayers[info.id].rotation.y = info.rotationY;
+            otherPlayers[info.id].userData.isCrouching = info.isCrouching;
 
             // Terapkan pose rebah visual authoritaitve jika server bilang downed
             if (otherPlayers[info.id].userData.isDowned) {
@@ -836,6 +869,16 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         isGameStarted = true; document.getElementById('level').innerText = level; 
         document.getElementById('wave-announcer').style.display = 'none';
         controls.lock(); 
+    });
+
+    socket.on('otherPlayerShot', (id) => {
+        if (otherPlayers[id] && otherPlayers[id].userData.hp > 0) {
+            let f = otherPlayers[id].userData.oFlash;
+            if(f) {
+                f.intensity = 5; f.children[0].visible = true; f.children[0].rotation = Math.random() * Math.PI;
+                setTimeout(() => { f.intensity = 0; f.children[0].visible = false; }, 50);
+            }
+        }
     });
 
 
@@ -1333,14 +1376,15 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         let wLv = ownedWeapons[wId] || 1;
         let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
 
-        playGunSound(wId); 
+       playGunSound(wId); 
         socket.emit('playerShootVisual');
-        muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
+        
+        // Muzzle Flash Effect (Nyala Singkat)
+        muzzleFlash.intensity = 5; 
+        muzzleSprite.visible = true; 
+        muzzleSprite.rotation = Math.random() * Math.PI; // Rotasi acak ala CS
+        setTimeout(() => { muzzleFlash.intensity = 0; muzzleSprite.visible = false; }, 50);
 
-// --- HAPUS SEMUA KODE camera.rotation DI SINI ---
-
-        socket.emit('playerShootVisual');
-        muzzleFlash.intensity = 5; setTimeout(() => muzzleFlash.intensity = 0, 50);
         
         // Animasi senjata nendang ke belakang
         gunGroup.position.z = -2.2; 
@@ -1475,6 +1519,8 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             document.getElementById('revive-interaction-container').style.display = 'none';
         }
 
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') { isCrouching = true; }
+
         if (!isInventoryOpen && !isShopOpen && myHp > 0 && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
             isReloading = false;
             if (reloadTimeoutId) clearTimeout(reloadTimeoutId);
@@ -1518,6 +1564,8 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             // Beritahu server untuk batalkan/stop revive authoritaitve
             socket.emit('stopReviveAction');
         }
+
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') { isCrouching = false; }
     });
 
     let prevTime = performance.now();
@@ -1674,46 +1722,34 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 100.0 * delta; 
             direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft); direction.normalize();
 
-         let isMoving = moveForward || moveBackward || moveLeft || moveRight;
+        let isMoving = moveForward || moveBackward || moveLeft || moveRight;
             let speed = 400.0; // Kecepatan normal berdiri
 
             if (isDowned) {
-                // --- MOVEMENT KHUSUS DOWNED/CRAWLING (PHASE 2) ---
-                // Movement autoritaitve, sangat lambat, blok aksi normal.
-                speed = 100.0; // downedSpeed = normalSpeed * 0.25 (400 * 0.25)
-                
-                isSprinting = false; // Blok Sprint
-                // Blok stamina regen/deplete saat downed agar tidak error
+                speed = 100.0; 
+                isSprinting = false; 
                 currentStamina = THREE.MathUtils.lerp(currentStamina, 0, 0.1); 
-
-                
-                
-
-
+            } else if (isCrouching) {
+                speed = 180.0; // Movement jongkok lebih lambat
+                isSprinting = false; // Blok sprint
+                if (currentStamina < maxStamina) currentStamina += 20 * delta;
             } else {
-                // --- MOVEMENT NORMAL EXISTING ---
-                if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
-              
+                if (isSprinting && isMoving && currentStamina > 0) { speed = 600.0; currentStamina -= 25 * delta; } 
+                else { if (currentStamina < maxStamina) currentStamina += 15 * delta; }
             }
             updateUI();
 
-            // Terapkan velocity authoritaitve lambat
+            // Terapkan velocity 
             if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
             if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
-            
             controls.moveRight(-velocity.x * delta);
             controls.moveForward(-velocity.z * delta);
 
-            if (isMoving && !isReloading) {
-                swayTime += 12 * delta;
-                let swayAmt = isSprinting ? 0.08 : 0.04;
-                gunGroup.position.x = 1.4 + (Math.sin(swayTime) * swayAmt);
-                gunGroup.position.y = -1.4 + (Math.abs(Math.cos(swayTime)) * swayAmt);
-            } else if (!isReloading) {
-                gunGroup.position.x = THREE.MathUtils.lerp(gunGroup.position.x, 1.4, 0.1);
-                gunGroup.position.y = THREE.MathUtils.lerp(gunGroup.position.y, -1.4, 0.1);
-            }
-            
+            // --- CROUCH CAMERA SMOOTHING ---
+            let targetBaseY = isCrouching ? 3.0 : 5.5; 
+            currentBaseY = THREE.MathUtils.lerp(currentBaseY, targetBaseY, 12 * delta);
+
+            // Collision Tembok (tetap sama)
             let newX = camera.position.x; let newZ = camera.position.z; let collideX = false; let collideZ = false; let playerRadius = 1.5;
             for (let w of serverWalls) {
                 let hwX = w.width / 2; let hwZ = w.depth / 2;
@@ -1722,14 +1758,19 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             }
             if (collideX) camera.position.x = oldX; if (collideZ) camera.position.z = oldZ;
 
+            // Gravitasi mengikuti Base Y (Crouch atau Berdiri)
             camera.position.y += (velocity.y * delta);
-            if (camera.position.y < 5.5) { velocity.y = 0; camera.position.y = 5.5; canJump = true; }
+            if (camera.position.y <= currentBaseY + 0.05) { 
+                if (velocity.y < 0) velocity.y = 0; 
+                camera.position.y = currentBaseY; 
+                canJump = !isCrouching; // Matikan jump saat crouch
+            }
 
-            let camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
+            let camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
             let currentRotY = Math.atan2(camDir.x, camDir.z) + Math.PI;
 
-            socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY });
+            // Sync ke Server (Kirim state isCrouching)
+            socket.emit('playerMove', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotationY: currentRotY, isCrouching: isCrouching });
 
             // --- PROSES SMOOTH RECOIL & RECOVERY ---
             let pitchDiff = targetRecoilPitch - currentRecoilPitch;
@@ -1777,11 +1818,11 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             if (WEAPONS[wId] && WEAPONS[wId].auto) fireWeapon();
         }
 
-       for(let zid in zombies) {
+       // ZOMBIE ANIMATION REALISM
+        for(let zid in zombies) {
             let z = zombies[zid];
             if(z.visible) {
                 if (!z.userData.lastPos) z.userData.lastPos = z.position.clone();
-                
                 let targetPos = z.position.clone();
                 let dir = targetPos.clone().sub(z.userData.lastPos);
                 
@@ -1794,16 +1835,29 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
                 }
 
                 let distMoved = targetPos.distanceTo(z.userData.lastPos);
-                if (distMoved > 0.001) {
+                let isAttacking = (camera.position.distanceTo(z.position) < 4.0 && myHp > 0);
+
+                if (isAttacking) {
+                    // Animasi ATTACK: Tangan mengayun ke bawah mencakar
+                    z.userData.walkTime = (z.userData.walkTime || 0) + 20 * delta;
+                    let attackSwing = Math.sin(z.userData.walkTime) * 1.5;
+                    if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI / 1.5 + attackSwing;
+                    if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI / 1.5 + attackSwing;
+                    if(z.userData.legL) z.userData.legL.rotation.x = 0;
+                    if(z.userData.legR) z.userData.legR.rotation.x = 0;
+                } else if (distMoved > 0.001) {
+                    // Animasi JALAN: Tangan terangkat khas zombie
                     z.userData.walkTime = (z.userData.walkTime || 0) + 14 * delta;
                     let swing = Math.sin(z.userData.walkTime) * 0.9;
-                    if(z.userData.armL) z.userData.armL.rotation.x = swing;
-                    if(z.userData.armR) z.userData.armR.rotation.x = -swing;
+                    let armBase = -Math.PI / 2.5; 
+                    if(z.userData.armL) z.userData.armL.rotation.x = armBase + (swing * 0.2);
+                    if(z.userData.armR) z.userData.armR.rotation.x = armBase - (swing * 0.2);
                     if(z.userData.legL) z.userData.legL.rotation.x = -swing;
                     if(z.userData.legR) z.userData.legR.rotation.x = swing;
                 } else {
-                    if(z.userData.armL) z.userData.armL.rotation.x = 0;
-                    if(z.userData.armR) z.userData.armR.rotation.x = 0;
+                    // Animasi IDLE
+                    if(z.userData.armL) z.userData.armL.rotation.x = -Math.PI / 4; 
+                    if(z.userData.armR) z.userData.armR.rotation.x = -Math.PI / 4;
                     if(z.userData.legL) z.userData.legL.rotation.x = 0;
                     if(z.userData.legR) z.userData.legR.rotation.x = 0;
                 }
@@ -1811,17 +1865,32 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             }
         }
 
+        // OTHER PLAYERS ANIMATION (Crouch & Walk)
         Object.values(otherPlayers).forEach(p => { 
-            if(p.visible) {
+            if(p.visible && !p.userData.isDowned) {
                 p.userData.labelMesh.lookAt(camera.position); 
                 if (!p.userData.lastPos) p.userData.lastPos = p.position.clone();
                 let distMoved = p.position.distanceTo(p.userData.lastPos);
-                if (distMoved > 0.02) {
-                    p.userData.walkTime = (p.userData.walkTime || 0) + 15 * delta;
-                    let swing = Math.sin(p.userData.walkTime) * 0.8;
-                    p.userData.legL.rotation.x = -swing; p.userData.legR.rotation.x = swing;
+
+                // Efek visual badan turun saat jongkok
+                if (p.userData.isCrouching) {
+                    p.position.y = THREE.MathUtils.lerp(p.position.y, p.userData.lastPos.y - 1.2, 15 * delta);
                 } else {
-                    p.userData.legL.rotation.x = 0; p.userData.legR.rotation.x = 0;
+                    p.position.y = THREE.MathUtils.lerp(p.position.y, p.userData.lastPos.y, 15 * delta);
+                }
+
+                if (distMoved > 0.02) {
+                    let speedMult = p.userData.isCrouching ? 8 : 15;
+                    p.userData.walkTime = (p.userData.walkTime || 0) + speedMult * delta;
+                    let swing = Math.sin(p.userData.walkTime) * 0.8;
+                    
+                    let baseLegRot = p.userData.isCrouching ? -Math.PI/6 : 0; // Kaki menekuk jika jongkok
+                    p.userData.legL.rotation.x = baseLegRot + (-swing); 
+                    p.userData.legR.rotation.x = baseLegRot + (swing);
+                } else {
+                    let baseLegRot = p.userData.isCrouching ? -Math.PI/6 : 0;
+                    p.userData.legL.rotation.x = baseLegRot; 
+                    p.userData.legR.rotation.x = baseLegRot;
                 }
                 p.userData.lastPos.copy(p.position);
             }
