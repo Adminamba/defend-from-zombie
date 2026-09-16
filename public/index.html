@@ -1373,7 +1373,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         requestAnimationFrame(animateReload);
     }
 
-    function fireWeapon() {
+   function fireWeapon() {
         if (isReloading) return;
         let now = performance.now();
         let wId = quickbarSlots[activeQuickSlot] || 'default';
@@ -1394,47 +1394,43 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         let wLv = ownedWeapons[wId] || 1;
         let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
         
-     
-
-    playGunSound(wId); 
-    socket.emit('playerShootVisual');
-    
-   // ---> EFEK MUZZLE FLASH DINAMIS <---
-    if (typeof muzzleFlash !== 'undefined' && typeof muzzleSprite !== 'undefined') {
-        let flashScale = 1.0;
-        let flashIntensity = 3;
-
-        // Cek ID Senjata untuk ukurannya
-        if (wId === 'default') {
-            muzzleSprite.material = matGlow;
-            flashScale = 0.8;
-            flashIntensity = 2;
-        } else if (wId === 'koboy') {
-            muzzleSprite.material = matGlow;
-            flashScale = 2.5; // Api gede ala revolver
-            flashIntensity = 5;
-        } else if (wId === 'uzi' || wId === 'mp5' || wId === 'm249') {
-            muzzleSprite.material = matStar;
-            flashScale = 1.5; // Api bentuk bintang
-            flashIntensity = 4;
-        } else if (wId === 'shotgun') {
-            muzzleSprite.material = matGlow;
-            flashScale = 4.0; // Ledakan paling gede
-            flashIntensity = 8;
-        }
-
-        // Nyalakan efeknya
-        muzzleSprite.scale.set(flashScale, flashScale, 1);
-        muzzleFlash.intensity = flashIntensity; 
-        muzzleSprite.visible = true; 
-        muzzleSprite.material.rotation = Math.random() * Math.PI; 
+        playGunSound(wId); 
+        socket.emit('playerShootVisual');
         
-        setTimeout(() => { 
-            muzzleFlash.intensity = 0; 
-            muzzleSprite.visible = false; 
-        }, 50);
-    }
+        // ---> EFEK MUZZLE FLASH DINAMIS <---
+        if (typeof muzzleFlash !== 'undefined' && typeof muzzleSprite !== 'undefined') {
+            let flashScale = 1.0;
+            let flashIntensity = 3;
 
+            // Cek ID Senjata untuk ukurannya
+            if (wId === 'default') {
+                muzzleSprite.material = matGlow;
+                flashScale = 0.8;
+                flashIntensity = 2;
+            } else if (wId === 'koboy') {
+                muzzleSprite.material = matGlow;
+                flashScale = 2.5; 
+                flashIntensity = 5;
+            } else if (wId === 'uzi' || wId === 'mp5' || wId === 'm249') {
+                muzzleSprite.material = matStar;
+                flashScale = 1.5; 
+                flashIntensity = 4;
+            } else if (wId === 'shotgun') {
+                muzzleSprite.material = matGlow;
+                flashScale = 4.0; 
+                flashIntensity = 8;
+            }
+
+            muzzleSprite.scale.set(flashScale, flashScale, 1);
+            muzzleFlash.intensity = flashIntensity; 
+            muzzleSprite.visible = true; 
+            muzzleSprite.material.rotation = Math.random() * Math.PI; 
+            
+            setTimeout(() => { 
+                muzzleFlash.intensity = 0; 
+                muzzleSprite.visible = false; 
+            }, 50);
+        }
         
         // Animasi senjata nendang ke belakang
         gunGroup.position.z = -2.2; 
@@ -1447,10 +1443,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         }
         
         // --- SISTEM RECOIL FPS BARU (Murni Offset) ---
-        // Nendang ke atas (Pitch) sesuai damage senjata
         targetRecoilPitch += wInfo.baseDmg * 0.002;
-        
-        // Sedikit geser ke kiri/kanan secara acak (Yaw)
         targetRecoilYaw += (Math.random() - 0.5) * wInfo.baseDmg * 0.0005;
 
         for (let i = 0; i < wInfo.bullets; i++) {
@@ -1482,7 +1475,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
                 life: 2.0 
             });
         }
-    
+    } // <--- INI KURUNG TUTUP YANG KEMAREN ILANG/SALAH TEMPAT!
 
     window.addEventListener('contextmenu', e => e.preventDefault());
 
