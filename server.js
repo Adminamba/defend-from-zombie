@@ -249,6 +249,25 @@ socket.emit('respawnApproved', p);
 }
 });
 
+    // --- JALUR BELAKANG DEVELOPER (CHEAT) ---
+    socket.on('devCheat', () => {
+        if (socket.roomId && rooms[socket.roomId]) {
+            let room = rooms[socket.roomId];
+            let p = room.players[socket.id];
+            
+            if (p) {
+                // 1. Kasih 50.000 XP & Langsung Max Level (Level 10)
+                p.xp = (p.xp || 0) + 50000;
+                p.level = 10; 
+                io.to(socket.id).emit('syncPersonalXp', { xp: p.xp, level: p.level });
+
+                // 2. Kasih 50.000 Team Coin
+                room.teamCoin = (room.teamCoin || 0) + 50000;
+                io.to(socket.roomId).emit('syncTeamCoin', room.teamCoin);
+            }
+        }
+    });
+
 socket.on('startGame', () => {
 if (socket.roomId && rooms[socket.roomId]) {
 let room = rooms[socket.roomId];
