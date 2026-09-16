@@ -383,10 +383,47 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
     };
     let quickbarSlots = ['default', null, null, null];
 
-    const gunGroup = new THREE.Group();
+   const gunGroup = new THREE.Group();
     let currentGunMeshName = 'default';
-   const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
-    muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash);
+
+    // --- TEKSTUR API BULAT (Pistol/Shotgun) ---
+    function createGlowFlash() {
+        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(0.3, 'rgba(255, 200, 0, 0.8)');
+        grad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+        ctx.fillStyle = grad; ctx.fillRect(0,0,128,128);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    // --- TEKSTUR API BINTANG (SMG/LMG) ---
+    function createStarFlash() {
+        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(0.2, 'rgba(255, 255, 0, 0.8)');
+        grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        ctx.fillStyle = grad; ctx.beginPath();
+        for(let i=0; i<8; i++) {
+            ctx.moveTo(64,64); let angle = i * Math.PI/4;
+            ctx.lineTo(64 + Math.cos(angle)*60, 64 + Math.sin(angle)*60);
+        }
+        ctx.fill(); return new THREE.CanvasTexture(canvas);
+    }
+
+    // Siapkan Material
+    const matGlow = new THREE.SpriteMaterial({ map: createGlowFlash(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
+    const matStar = new THREE.SpriteMaterial({ map: createStarFlash(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
+
+    const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
+    muzzleFlash.position.set(0, 0.05, -2.5); 
+    const muzzleSprite = new THREE.Sprite(matGlow); // Default pakai glow
+    muzzleSprite.visible = false;
+    muzzleFlash.add(muzzleSprite); 
+    gunGroup.add(muzzleFlash);
     gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
 
    
@@ -610,7 +647,9 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         }
     });
 
-    function createHumanoidModel(colorHex, username) {
+    function createHumanoidModel(info) {
+        const colorHex = info.color;
+        const username = info.username;
         const group = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1.2), new THREE.MeshStandardMaterial({ color: colorHex })); body.position.y = 3; group.add(body);
         const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color: 0xffcc99 })); head.position.y = 5.25; 
@@ -627,7 +666,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         const tgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })); tgBarrel.rotation.x = Math.PI / 2; tgBarrel.position.set(0, -1.1, -1.4);
         tGun.add(tgBody); tGun.add(tgBarrel);
         const oFlash = new THREE.PointLight(0xffff00, 0, 15); oFlash.position.set(0, -1.1, -2); 
-        const oFlashSprite = new THREE.Sprite(muzzleSpriteMat);
+       const oFlashSprite = new THREE.Sprite(matGlow);
         oFlashSprite.scale.set(1.5, 1.5, 1); oFlashSprite.visible = false;
         oFlash.add(oFlashSprite);
         tGun.add(oFlash); armR.add(tGun); group.add(armR);
@@ -1182,7 +1221,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         // Cegah duplikasi mesh jika player sudah ada
         if (otherPlayers[info.id]) return; 
 
-        const model = createHumanoidModel(info.color, info.username);
+        const model = createHumanoidModel(info);
         model.position.set(info.x, info.y - 5.5, info.z); 
         if (info.isDowned) { applyCrawlingPose(model); }
         
@@ -1360,17 +1399,41 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
     playGunSound(wId); 
     socket.emit('playerShootVisual');
     
-    // ---> PASTE KODE YANG BARU DI SINI <---
+   // ---> EFEK MUZZLE FLASH DINAMIS <---
     if (typeof muzzleFlash !== 'undefined' && typeof muzzleSprite !== 'undefined') {
-        muzzleFlash.intensity = 5; 
+        let flashScale = 1.0;
+        let flashIntensity = 3;
+
+        // Cek ID Senjata untuk ukurannya
+        if (wId === 'default') {
+            muzzleSprite.material = matGlow;
+            flashScale = 0.8;
+            flashIntensity = 2;
+        } else if (wId === 'koboy') {
+            muzzleSprite.material = matGlow;
+            flashScale = 2.5; // Api gede ala revolver
+            flashIntensity = 5;
+        } else if (wId === 'uzi' || wId === 'mp5' || wId === 'm249') {
+            muzzleSprite.material = matStar;
+            flashScale = 1.5; // Api bentuk bintang
+            flashIntensity = 4;
+        } else if (wId === 'shotgun') {
+            muzzleSprite.material = matGlow;
+            flashScale = 4.0; // Ledakan paling gede
+            flashIntensity = 8;
+        }
+
+        // Nyalakan efeknya
+        muzzleSprite.scale.set(flashScale, flashScale, 1);
+        muzzleFlash.intensity = flashIntensity; 
         muzzleSprite.visible = true; 
         muzzleSprite.material.rotation = Math.random() * Math.PI; 
+        
         setTimeout(() => { 
             muzzleFlash.intensity = 0; 
             muzzleSprite.visible = false; 
         }, 50);
     }
-}
 
         
         // Animasi senjata nendang ke belakang
