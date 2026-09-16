@@ -1553,6 +1553,13 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
             else { invModal.style.display = 'none'; controls.lock(); }
             return;
         }
+
+        // --- TOMBOL CHEAT DEVELOPER (Tombol ~ / Backquote) ---
+        if (e.code === 'Backquote') { 
+            socket.emit('devCheat');
+            showNotification('👨‍💻 HACKERMAN: +50.000 XP & COIN!', '#FFD700');
+            return;
+        }
         
         // --- REVIVE INPUT (PHASE 2 AUTHORITATIVE) ---
         if (e.code === 'KeyG' && !isDowned && !isSpectating && reviveTargetId && controls.isLocked) {
