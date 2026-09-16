@@ -389,8 +389,20 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
     muzzleFlash.position.set(0, 0.05, -2.5); gunGroup.add(muzzleFlash);
     gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
 
-    // -- MUZZLE FLASH TEXTURE (CS-Style) --
-    function createMuzzleFlashTexture() {
+   // --- TEKSTUR API BULAT (Pistol/Shotgun) ---
+    function createGlowFlash() {
+        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(0.3, 'rgba(255, 200, 0, 0.8)');
+        grad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+        ctx.fillStyle = grad; ctx.fillRect(0,0,128,128);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    // --- TEKSTUR API BINTANG (SMG/LMG) ---
+    function createStarFlash() {
         const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
         const ctx = canvas.getContext('2d');
         const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
@@ -400,17 +412,22 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         ctx.fillStyle = grad; ctx.beginPath();
         for(let i=0; i<8; i++) {
             ctx.moveTo(64,64); let angle = i * Math.PI/4;
-            ctx.lineTo(64 + Math.cos(angle)*50, 64 + Math.sin(angle)*50);
+            ctx.lineTo(64 + Math.cos(angle)*60, 64 + Math.sin(angle)*60);
         }
         ctx.fill(); return new THREE.CanvasTexture(canvas);
     }
-    const muzzleSpriteMat = new THREE.SpriteMaterial({ map: createMuzzleFlashTexture(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
-    const muzzleSprite = new THREE.Sprite(muzzleSpriteMat);
-    muzzleSprite.scale.set(1.5, 1.5, 1);
+
+    // Siapkan 2 Material
+    const matGlow = new THREE.SpriteMaterial({ map: createGlowFlash(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
+    const matStar = new THREE.SpriteMaterial({ map: createStarFlash(), color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false });
+
+    // Setup Muzzle Flash Default
+    const muzzleFlash = new THREE.PointLight(0xffff00, 0, 15); 
+    muzzleFlash.position.set(0, 0.05, -2.5); 
+    const muzzleSprite = new THREE.Sprite(matGlow); // Default pakai glow
     muzzleSprite.visible = false;
-    muzzleFlash.add(muzzleSprite); // Tempel ke lampu
+    muzzleFlash.add(muzzleSprite); 
     gunGroup.add(muzzleFlash);
-    gunGroup.position.set(1.4, -1.4, -2.5); camera.add(gunGroup);
 
 
 
@@ -1375,12 +1392,8 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         lastShotTime = now;
         let wLv = ownedWeapons[wId] || 1;
         let finalDmg = wInfo.baseDmg * (1 + ((wLv - 1) * 0.5));
-
-       playGunSound(wId); 
-        socket.emit('playerShootVisual');
         
-       function fireWeapon() {
-    // ... (kode raycaster / hitungan peluru lu yang lama biarin aja) ...
+     
 
     playGunSound(wId); 
     socket.emit('playerShootVisual');
