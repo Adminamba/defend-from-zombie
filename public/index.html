@@ -398,7 +398,7 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         return new THREE.CanvasTexture(canvas);
     }
 
-    // --- TEKSTUR API BINTANG (SMG/LMG) ---
+   // --- TEKSTUR API BINTANG (SMG/LMG) YANG UDAH DIPERBAIKI ---
     function createStarFlash() {
         const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
         const ctx = canvas.getContext('2d');
@@ -406,12 +406,26 @@ text-shadow: 2px 2px 4px #000; pointer-events: none; display: none;
         grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
         grad.addColorStop(0.2, 'rgba(255, 255, 0, 0.8)');
         grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
-        ctx.fillStyle = grad; ctx.beginPath();
+        
+        // PERBAIKAN: Pakai stroke (garis) biar bintangnya punya ketebalan dan muncul
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 12; // Ketebalan percikan bintang
+        ctx.lineCap = 'round';
+        ctx.beginPath();
         for(let i=0; i<8; i++) {
-            ctx.moveTo(64,64); let angle = i * Math.PI/4;
+            ctx.moveTo(64,64); 
+            let angle = i * Math.PI/4;
             ctx.lineTo(64 + Math.cos(angle)*60, 64 + Math.sin(angle)*60);
         }
-        ctx.fill(); return new THREE.CanvasTexture(canvas);
+        ctx.stroke(); // Gambar garisnya!
+
+        // Tambahin inti api di tengah biar makin realistis
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(64, 64, 15, 0, Math.PI*2);
+        ctx.fill();
+
+        return new THREE.CanvasTexture(canvas);
     }
 
     // Siapkan Material
